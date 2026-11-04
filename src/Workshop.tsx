@@ -87,6 +87,21 @@ function Pad({
             : {}),
         }
       : raw;
+    if (!d.strokes.length) {
+      ctx.save();
+      ctx.strokeStyle = "#69816d66";
+      ctx.lineWidth = kind === "body" ? 16 : kind === "head" ? 10 : 12;
+      ctx.setLineDash([8, 10]);
+      ctx.beginPath();
+      if (kind === "head") ctx.ellipse(265, 210, 58, 40, 0, 0, Math.PI * 2);
+      else for (let i = 0; i <= 50; i++) {
+        const t = i / 50, x = kind === "body" ? 65 + 350 * t : 190 + 100 * t;
+        const y = 210 + Math.sin(t * Math.PI * 3) * (kind === "body" ? 25 : 15);
+        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
     const connection = drawingConnection(d, kind);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -293,7 +308,7 @@ export default function Workshop({
 }) {
   const [tool, setTool] = useState<Tool>("pen"),
     [color, setColor] = useState(colors[0]),
-    [width, setWidth] = useState(12),
+    [width, setWidth] = useState(10),
     [live, setLive] = useState<Drawing | null>(null);
   const history = useRef<Record<PartName, Drawing[]>>({
     head: [],
@@ -318,6 +333,9 @@ export default function Workshop({
     if (preview.current) observer.observe(preview.current);
     return () => observer.disconnect();
   }, [values, live]);
+  useEffect(() => {
+    setWidth(kind === "head" ? 10 : kind === "body" ? 16 : 12);
+  }, [kind]);
   const commit = (d: Drawing) => {
     history.current[kind] = [...history.current[kind], values[kind]].slice(-40);
     onChange({ ...values, [kind]: d });
@@ -395,6 +413,7 @@ export default function Workshop({
         aria-label={`${names[kind]} 그리기 참고`}
       >
         <b>{PART_DRAW_TIPS[kind].title}</b>
+        <small>점선 크기로 그리면 NPC와 비슷한 체급이에요.</small>
         <div>
           {PART_DRAW_TIPS[kind].tips.map((tip) => (
             <span key={tip}>{tip}</span>
