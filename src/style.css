@@ -3387,3 +3387,37 @@ meter::-webkit-meter-optimum-value {
 .workshop > .arcade-tools { order: -3; margin-bottom: 6px; }
 .workshop > .creation-stage { order: -2; }
 .workshop > .part-draw-guide { margin-top: 8px; }
+
+/* Compact supporting content; keep controls in normal flow at every width. */
+.game-shell main, .workshop, .prepare-grid > *, .race-options, .racer-profile { min-width: 0; }
+.game-shell button, .game-shell summary { white-space: normal; overflow-wrap: anywhere; }
+.compact-panel, .workshop > details.part-draw-guide { border: 1px solid #b5c49e; border-radius: 10px; padding: 10px 12px; margin: 8px 0; background: #fff5df; color: #35452e; }
+.compact-panel > summary, .part-draw-guide > summary { cursor: pointer; font-size: 13px; font-weight: 800; padding: 4px 0; }
+.workshop > details:not([open]) > :not(summary) { display: none; }
+.workshop-options { flex-wrap: wrap; justify-content: flex-start; padding: 8px 0; }
+.workshop-options > span { flex-basis: 100%; }
+.paper-footer { flex-wrap: wrap; gap: 10px; }
+.paper-footer label { flex: 1; justify-content: flex-end; min-width: 95px; }
+.canvas-instruction { position: static; transform: none; gap: 3px; padding: 8px; text-align: center; }
+.canvas-instruction b { font-size: 12px; padding: 4px 8px; max-width: 100%; }
+.canvas-instruction span { font-size: 10px; }
+.arcade-bottom, .center-actions, .race-actions, .race-status-line, .section-heading { flex-wrap: wrap; }
+.arcade-bottom > button { min-width: 0; flex: 1; padding: 10px 6px; }
+.arcade-bottom > button.next-draw { min-width: 0; font-size: 20px; }
+.game-shell .prepare-grid .start-area { position: static; width: 100%; box-sizing: border-box; flex-wrap: wrap; }
+.game-shell .prepare-grid .start-area > span { max-width: 100%; }
+.game-shell .prepare-grid .start-area .start-button { width: 100%; }
+.game-shell .race-canvas.terrain-canvas { height: clamp(280px, 52svh, 580px); }
+@media (max-width: 650px) {
+ .game-shell .prepare-page { padding-bottom: 20px; }
+ .part-tabs button { padding: 6px 10px; }
+ .race-page .section-heading h1 { font-size: 21px; }
+ .challenge-banner, .result-links { flex-wrap: wrap; overflow-wrap: anywhere; }
+ .result-table { overflow-x: auto; }
+}
+@media (max-width: 400px) {
+ .result-hero { flex-direction: column; text-align: center; gap: 8px; }
+ .result-hero > div { width: 100%; min-width: 0; }
+ .result-hero h2 { font-size: 36px; white-space: nowrap; }
+ .race-breakdown b { overflow-wrap: normal; word-break: keep-all; }
+}

@@ -413,11 +413,11 @@ export default function Workshop({
           </div>
         ))}
       </div>
-      <div
+      <details
         className="part-draw-guide"
         aria-label={`${names[kind]} 그리기 참고`}
       >
-        <b>{PART_DRAW_TIPS[kind].title}</b>
+        <summary>{PART_DRAW_TIPS[kind].title} · 그리기 팁</summary>
         <small>점선 크기로 그리면 NPC와 비슷한 체급이에요.</small>
         <div>
           {PART_DRAW_TIPS[kind].tips.map((tip) => (
@@ -428,7 +428,7 @@ export default function Workshop({
         {!!current.strokes.length && (
           <p>{partTraitLabels(stats, kind).join(" · ")}</p>
         )}
-      </div>
+      </details>
       <div className="creation-stage">
         <div className="paper-heading">
           <span>
@@ -523,6 +523,7 @@ export default function Workshop({
               : `${names[kind]} 완성 중! 크기도 무게에 반영돼요`}
         </strong>
       </div>
+      <details className="compact-panel"><summary>연결점 설정</summary>
       <div className="workshop-options">
         <button onClick={() => commit(drawing(current.strokes, kind))}>
           연결점 자동 맞춤
@@ -543,6 +544,7 @@ export default function Workshop({
               : "원하는 모양 그대로, 자유롭게!"}
         </span>
       </div>
+      </details>
       {kind === "head" && connections.reports.head.eyes.length > 0 && (
         <p className="class-note" role="status">
           눈 장식으로 인식한 선은 연결하지 않아도 돼요.
@@ -576,7 +578,7 @@ export default function Workshop({
         <button onClick={onSample}>샘플 경기</button>
       </div>
       {Object.values(draft.parts).some((p) => p.strokes.length) && (
-        <AbilityPanel stats={stats} compact />
+        <details className="compact-panel"><summary>전체 능력치 보기</summary><AbilityPanel stats={stats} compact /></details>
       )}
       <details className="assembly-peek">
         <summary>

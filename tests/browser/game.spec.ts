@@ -135,6 +135,7 @@ test("drawing desk supports partial erasing, undo, live stats and movable connec
   const erased = await canvas.screenshot();
   expect(erased.equals(before)).toBe(false);
   await page.getByRole("button", { name: "↶ 되돌리기" }).click();
+  await page.getByText("연결점 설정", {exact:true}).click();
   await page.getByRole("button", { name: "⊙ 연결점 옮기기" }).click();
   await canvas.click({ position: { x: 100, y: 100 } });
   await expect(
@@ -694,6 +695,7 @@ test("part drawing tips stay simple, assembly preview is still, and tail anchors
     position: { x: (435 / 480) * box.width, y: (240 / 420) * box.height },
   });
   expect(Math.abs((await marker()) - before)).toBeLessThan(1);
+  await page.getByText("연결점 설정", {exact:true}).click();
   await page.getByRole("button", { name: "연결점 자동 맞춤" }).click();
   expect(await marker()).toBeGreaterThan(before + 30);
   await page.getByRole("button", { name: "↶ 되돌리기" }).click();
