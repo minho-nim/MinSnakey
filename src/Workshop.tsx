@@ -1,3 +1,4 @@
+import AbilityPanel from "./AbilityPanel";
 import {
   useEffect,
   useRef,
@@ -284,6 +285,7 @@ export default function Workshop({
   const switchPart = (index: number) => {
     setLive(null);
     onStep(index);
+    window.scrollTo(0, 0);
   };
   return (
     <section className="workshop">
@@ -406,7 +408,7 @@ export default function Workshop({
             ).toFixed(1)}
             kg
           </b>{" "}
-          · 유연성 <b>{Math.round(stats.flex * 100)}%</b>
+          · 크기 <b>{(stats.size * 100).toFixed(0)}cm</b>
         </span>
         <strong>
           {!ink
@@ -446,6 +448,9 @@ export default function Workshop({
         </button>
         <button onClick={onSample}>샘플 경기</button>
       </div>
+      {Object.values(draft.parts).some((p) => p.strokes.length) && (
+        <AbilityPanel stats={stats} compact />
+      )}
       <details className="assembly-peek">
         <summary>
           내 뱀 조립 미리보기 <span>⌄</span>

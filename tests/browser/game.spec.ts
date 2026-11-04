@@ -149,16 +149,171 @@ test("drawing desk supports partial erasing, undo, live stats and movable connec
   await expect(page.getByRole("button", { name: /^다음/ })).toBeDisabled();
 });
 
-test('mobile touch strokes reach the drawing desk without scrolling the page',async({browser})=>{
- const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const page=await context.newPage();const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:5173');const box=(await page.getByLabel('머리 그리기 캔버스').boundingBox())!,session=await context.newCDPSession(page);
- await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+45,y:box.y+100}]});for(let i=1;i<20;i++)await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:box.x+45+i*10,y:box.y+100+Math.sin(i*.4)*30}]});await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await expect(page.getByRole('button',{name:/^다음/})).toBeEnabled();expect(await page.evaluate(()=>scrollY)).toBe(0);expect(errors).toEqual([]);await context.close();
+test("mobile touch strokes reach the drawing desk without scrolling the page", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("http://127.0.0.1:5173");
+  const box = (await page.getByLabel("머리 그리기 캔버스").boundingBox())!,
+    session = await context.newCDPSession(page);
+  await session.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: box.x + 45, y: box.y + 100 }],
+  });
+  for (let i = 1; i < 20; i++)
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        { x: box.x + 45 + i * 10, y: box.y + 100 + Math.sin(i * 0.4) * 30 },
+      ],
+    });
+  await session.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await expect(page.getByRole("button", { name: /^다음/ })).toBeEnabled();
+  expect(await page.evaluate(() => scrollY)).toBe(0);
+  expect(errors).toEqual([]);
+  await context.close();
 });
 
-test('faster default, fast-forward cycling, pause and immediate results work together',async({page})=>{
- const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.setViewportSize({width:390,height:844});await page.goto('/');await page.getByRole('button',{name:'샘플 경기',exact:true}).click();await page.clock.install();await page.getByRole('button',{name:'경주 시작 →'}).click();await expect(page.getByRole('button',{name:'빨리감기 현재 1.5배'})).toBeVisible();await page.clock.runFor(2000);await expect(page.getByTestId('distance')).toHaveText('0.0/ 100m');await page.clock.runFor(3000);
- const before=parseFloat((await page.getByTestId('time').textContent())!);await page.getByRole('button',{name:'빨리감기 현재 1.5배'}).click();await page.clock.runFor(1000);const after=parseFloat((await page.getByTestId('time').textContent())!);expect(after-before).toBeGreaterThan(2.7);expect(after-before).toBeLessThan(3.3);
- await page.getByRole('button',{name:'빨리감기 현재 3배'}).click();await expect(page.getByRole('button',{name:'빨리감기 현재 6배'})).toBeVisible();await page.getByRole('button',{name:'Ⅱ 일시정지'}).click();const paused=await page.getByTestId('time').textContent();await page.clock.runFor(1000);expect(await page.getByTestId('time').textContent()).toBe(paused);await page.getByRole('button',{name:'계속 달리기 →'}).click();await page.screenshot({path:'docs/playback-mobile.png',fullPage:true});await page.getByRole('button',{name:'결과보기 →'}).click();await expect(page.getByRole('heading',{name:'끝까지 달렸어요!'})).toBeVisible();expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('kkumul-race:v1')!).records.length)).toBe(1);expect(errors).toEqual([]);
+test("faster default, fast-forward cycling, pause and immediate results work together", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await page.clock.install();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await expect(
+    page.getByRole("button", { name: "빨리감기 현재 1.5배" }),
+  ).toBeVisible();
+  await page.clock.runFor(2000);
+  await expect(page.getByTestId("distance")).toHaveText("0.0/ 100m");
+  await page.clock.runFor(3000);
+  const before = parseFloat((await page.getByTestId("time").textContent())!);
+  await page.getByRole("button", { name: "빨리감기 현재 1.5배" }).click();
+  await page.clock.runFor(1000);
+  const after = parseFloat((await page.getByTestId("time").textContent())!);
+  expect(after - before).toBeGreaterThan(2.7);
+  expect(after - before).toBeLessThan(3.3);
+  await page.getByRole("button", { name: "빨리감기 현재 3배" }).click();
+  await expect(
+    page.getByRole("button", { name: "빨리감기 현재 6배" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Ⅱ 일시정지" }).click();
+  const paused = await page.getByTestId("time").textContent();
+  await page.clock.runFor(1000);
+  expect(await page.getByTestId("time").textContent()).toBe(paused);
+  await page.getByRole("button", { name: "계속 달리기 →" }).click();
+  await page.screenshot({ path: "docs/playback-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+  await expect(
+    page.getByRole("heading", { name: "끝까지 달렸어요!" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("kkumul-race:v1")!).records.length,
+    ),
+  ).toBe(1);
+  expect(errors).toEqual([]);
 });
-test('manual result shortcut reports non-finish honestly without saved personal record',async({page})=>{
- await page.goto('/');await page.getByRole('button',{name:'샘플 경기',exact:true}).click();await page.getByRole('button',{name:'조작 전환 ↔'}).click();await page.getByRole('button',{name:'경주 시작 →'}).click();await page.getByRole('button',{name:'결과보기 →'}).click();await expect(page.getByRole('heading',{name:'다음엔 결승선까지!'})).toBeVisible();await expect(page.locator('.my-result')).toContainText('미완주');expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('kkumul-race:v1')||'{"records":[]}').records.length)).toBe(0);
+test("manual result shortcut reports non-finish honestly without saved personal record", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await page.getByRole("button", { name: "조작 전환 ↔" }).click();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+  await expect(
+    page.getByRole("heading", { name: "다음엔 결승선까지!" }),
+  ).toBeVisible();
+  await expect(page.locator(".my-result")).toContainText("미완주");
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("kkumul-race:v1") || '{"records":[]}')
+          .records.length,
+    ),
+  ).toBe(0);
+});
+
+test("abilities and new courses are visible and water course records are stored separately", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await expect(page.getByLabel("체형 능력치")).toBeVisible();
+  await expect(page.getByLabel("체형 능력치").getByRole("meter")).toHaveCount(
+    6,
+  );
+  await page.getByRole("button", { name: /물웅덩이 달리기/ }).click();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await expect(
+    page.getByRole("heading", { name: /물웅덩이 달리기/ }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+  await expect(
+    page.getByRole("heading", { name: "끝까지 달렸어요!" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("kkumul-race:v1")!).records[0].course,
+    ),
+  ).toBe("puddles");
+  expect(errors).toEqual([]);
+});
+test("shared challenge opens in a fresh browser and races the actual opponent replay", async ({
+  page,
+  browser,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await page.getByRole("button", { name: /언덕 달리기/ }).click();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+  await page.getByRole("button", { name: "친구에게 도전장 보내기 ↗" }).click();
+  await expect(page.getByLabel("친구 도전 링크")).toHaveValue(/#challenge=/);
+  const url = await page.getByLabel("친구 도전 링크").inputValue();
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  const friend = await context.newPage();
+  friend.on("pageerror", (e) => errors.push(e.message));
+  await friend.goto(url);
+  await expect(
+    friend.getByRole("heading", { name: "도전장이 도착했어요!" }),
+  ).toBeVisible();
+  await friend.screenshot({
+    path: "docs/friend-challenge-mobile.png",
+    fullPage: true,
+  });
+  await friend.getByRole("button", { name: "이 뱀으로 도전하기 →" }).click();
+  await expect(
+    friend.getByRole("button", { name: /언덕 달리기/ }),
+  ).toBeDisabled();
+  await expect(
+    friend.getByRole("button", { name: "조작 전환 ↔" }),
+  ).toBeDisabled();
+  await friend.getByRole("button", { name: "경주 시작 →" }).click();
+  await friend.getByRole("button", { name: "결과보기 →" }).click();
+  await expect(friend.locator(".challenge-verdict")).toBeVisible();
+  await context.close();
+  expect(errors).toEqual([]);
 });

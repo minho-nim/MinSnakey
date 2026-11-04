@@ -1,7 +1,11 @@
+import { readChallenge, challengeLink, type Challenge } from "./challenge";
+import { COURSES, courseInfo, type CourseId } from "./courses";
+import AbilityPanel from "./AbilityPanel";
 import Workshop from "./Workshop";
 import { useEffect, useRef, useState } from "react";
 import {
   analyze,
+  RULES_VERSION,
   drawing,
   sampleSnake,
   type Drawing,
@@ -17,6 +21,7 @@ import {
   previewRacer,
   propel,
   standings,
+  verifyChallengeRecord,
   type Race,
 } from "./physics";
 import { renderPreview, renderRace } from "./render";
@@ -63,9 +68,9 @@ function RaceView({
     camera = useRef({ x: -2 }),
     [tick, setTick] = useState(0),
     [confirmExit, setConfirmExit] = useState(false),
-    [playbackRate,setPlaybackRate]=useState(DEFAULT_PLAYBACK_RATE);
-  const rateRef=useRef(playbackRate);
-  rateRef.current=playbackRate;
+    [playbackRate, setPlaybackRate] = useState(DEFAULT_PLAYBACK_RATE);
+  const rateRef = useRef(playbackRate);
+  rateRef.current = playbackRate;
   const done = useRef(false);
   useEffect(() => {
     done.current = false;
@@ -117,8 +122,16 @@ function RaceView({
       document.removeEventListener("visibilitychange", hidden);
     };
   }, [race, onDone]);
-  const showResults=()=>{if(done.current)return;finishRace(race);done.current=true;onDone()};
-  const changeSpeed=()=>{const rates=[1.5,3,6];setPlaybackRate(rates[(rates.indexOf(playbackRate)+1)%rates.length])};
+  const showResults = () => {
+    if (done.current) return;
+    finishRace(race);
+    done.current = true;
+    onDone();
+  };
+  const changeSpeed = () => {
+    const rates = [1.5, 3, 6];
+    setPlaybackRate(rates[(rates.indexOf(playbackRate) + 1) % rates.length]);
+  };
   void tick;
   const p = race.racers[0],
     rank = standings(race).indexOf(p) + 1;
@@ -128,7 +141,7 @@ function RaceView({
         <div>
           <span className="eyebrow">THE LITTLE BIG RACE</span>
           <h1>
-            100m 달리기{" "}
+            {courseInfo(race.course).name}{" "}
             <span className="tag">
               {race.mode === "auto" ? "자동" : "수동"}
             </span>
@@ -144,9 +157,25 @@ function RaceView({
           Ⅱ 일시정지
         </button>
       </div>
+      {race.challenge && (
+        <div className="challenge-banner">
+          <b>{race.challenge.snake.name}의 기록에 도전 중</b>
+          <span>
+            목표 {fmt(race.challenge.targetTime)} · 친구의 실제 경기 재생
+          </span>
+        </div>
+      )}
       <div className="race-actions">
-        <button className="secondary speed-button" aria-label={`빨리감기 현재 ${playbackRate}배`} onClick={changeSpeed}>⏩ 빨리감기 <b>{playbackRate}×</b></button>
-        <button className="primary result-shortcut" onClick={showResults}>결과보기 →</button>
+        <button
+          className="secondary speed-button"
+          aria-label={`빨리감기 현재 ${playbackRate}배`}
+          onClick={changeSpeed}
+        >
+          ⏩ 빨리감기 <b>{playbackRate}×</b>
+        </button>
+        <button className="primary result-shortcut" onClick={showResults}>
+          결과보기 →
+        </button>
       </div>
       <div className="race-hud">
         <div>
@@ -237,7 +266,11 @@ function RaceView({
             </button>
           </div>
         )}
-        {race.mode === "manual" && <p className="result-hint">결과보기는 지금까지의 조작 상태에서 추가 입력 없이 계산해요.</p>}
+        {race.mode === "manual" && (
+          <p className="result-hint">
+            결과보기는 지금까지의 조작 상태에서 추가 입력 없이 계산해요.
+          </p>
+        )}
         {p.finish !== null && (
           <p>완주했어요! 다른 선수들을 기다리는 중입니다.</p>
         )}
@@ -301,16 +334,20 @@ function RaceView({
 export default function App() {
   const [saved, setSaved] = useState<Saved>(load),
     [page, setPage] = useState<
-      "home" | "draw" | "preview" | "prepare" | "race" | "result"
+      "home" | "draw" | "preview" | "prepare" | "race" | "result" | "challenge"
     >("draw");
   const [snake, setSnake] = useState<Snake>(
       () => load().snakes[0] || { ...sampleSnake(), id: crypto.randomUUID() },
     ),
     [step, setStep] = useState(0),
     [mode, setMode] = useState<Mode>("auto"),
+    [course, setCourse] = useState<CourseId>("sprint"),
     [notice, setNotice] = useState(""),
     [race, setRace] = useState<Race | null>(null),
-    [previousBest, setPreviousBest] = useState<number | null>(null);
+    [previousBest, setPreviousBest] = useState<number | null>(null),
+    [incoming, setIncoming] = useState<Challenge | null>(null),
+    [shareURL, setShareURL] = useState(""),
+    [sharing, setSharing] = useState(false);
   const [editParts, setEditParts] = useState<Record<PartName, Drawing>>(
       load().snakes[0]?.parts || {
         head: drawing([], "head"),
@@ -331,6 +368,61 @@ export default function App() {
     },
     [],
   );
+  useEffect(() => {
+    let active = true;
+    readChallenge(window.location.hash)
+      .then((challenge) => {
+        if (!active || !challenge) return;
+        if (!verifyChallengeRecord(challenge))
+          throw new Error(
+            "도전 기록이 현재 규칙과 맞지 않아요. 새 링크를 받아주세요.",
+          );
+        setIncoming(challenge);
+        setCourse(challenge.course);
+        setMode(challenge.mode);
+        setPage("challenge");
+      })
+      .catch((error) => {
+        if (active) notify(error.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const leaveChallenge = () => {
+    setIncoming(null);
+    setShareURL("");
+    history.replaceState(
+      null,
+      "",
+      window.location.pathname + window.location.search,
+    );
+    setPage("home");
+  };
+  const createChallenge = async () => {
+    if (!race || sharing) return;
+    setSharing(true);
+    try {
+      const base = location.hostname.endsWith(".chatgpt.site")
+        ? "https://minho-nim.github.io/snake-race/"
+        : location.href;
+      setShareURL(await challengeLink(race, base));
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : "도전 링크를 만들지 못했어요.",
+      );
+    } finally {
+      setSharing(false);
+    }
+  };
+  const copyChallenge = async () => {
+    try {
+      await navigator.clipboard.writeText(shareURL);
+      notify("도전 링크를 복사했어요. 친구에게 보내주세요!");
+    } catch {
+      notify("아래 주소를 길게 눌러 복사해 주세요.");
+    }
+  };
   const persist = (value: Saved) => {
     setSaved(value);
     if (!save(value))
@@ -340,7 +432,8 @@ export default function App() {
   };
   const prepare = (s = snake) => {
     setSnake(s);
-    setMode("auto");
+    setMode(incoming?.mode || "auto");
+    if (incoming) setCourse(incoming.course);
     setPage("prepare");
     window.scrollTo(0, 0);
   };
@@ -358,6 +451,7 @@ export default function App() {
     setStep(0);
     if (fresh) setSnake({ ...sampleSnake(), id: crypto.randomUUID() });
     setPage("draw");
+    window.scrollTo(0, 0);
   };
   const saveSnake = () => {
     const value: Snake = {
@@ -376,7 +470,8 @@ export default function App() {
     setPage("preview");
   };
   const start = () => {
-    setRace(createRace(snake, mode));
+    setShareURL("");
+    setRace(createRace(snake, mode, course, incoming));
     setPage("race");
     window.scrollTo(0, 0);
   };
@@ -384,13 +479,20 @@ export default function App() {
   finishRef.current = () => {
     if (!race) return;
     const time = race.racers[0].finish;
-    setPreviousBest(best(saved, snake.id, mode));
+    setPreviousBest(best(saved, snake.id, mode, RULES_VERSION, course));
     if (time !== null)
       persist({
         ...saved,
         records: [
           ...saved.records,
-          { snakeId: snake.id, mode, time, date: Date.now() },
+          {
+            snakeId: snake.id,
+            mode,
+            time,
+            date: Date.now(),
+            rulesVersion: RULES_VERSION,
+            course,
+          },
         ].slice(-200),
       });
     setPage("result");
@@ -417,7 +519,7 @@ export default function App() {
           }}
         >
           <span className="brand-mark">〰</span>꼬물 레이스
-          <span className="version">v0.3</span>
+          <span className="version">v0.4</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">
@@ -425,6 +527,61 @@ export default function App() {
         </span>
       </header>
       <main>
+        {page === "challenge" && incoming && (
+          <section className="challenge-page">
+            <span className="eyebrow">FRIEND CHALLENGE</span>
+            <h1>도전장이 도착했어요!</h1>
+            <div className="challenge-opponent">
+              <Preview snake={incoming.snake} />
+              <h2>{incoming.snake.name}</h2>
+              <p>
+                {courseInfo(incoming.course).name} ·{" "}
+                {incoming.mode === "auto" ? "자동" : "수동"} 달리기
+              </p>
+              <strong>{fmt(incoming.targetTime)}</strong>
+            </div>
+            <p className="challenge-explainer">
+              친구의 실제 경기를 재생해 같은 조건으로 대결해요.
+              <br />내 뱀을 골라 기록에 도전해 보세요!
+            </p>
+            <div className="challenge-my-racer">
+              <label>
+                내 선수{" "}
+                {saved.snakes.length > 0 && (
+                  <select
+                    aria-label="도전할 내 뱀"
+                    value={snake.id}
+                    onChange={(e) =>
+                      setSnake(
+                        saved.snakes.find((s) => s.id === e.target.value) ||
+                          snake,
+                      )
+                    }
+                  >
+                    {saved.snakes.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </label>
+              <Preview snake={snake} />
+              <b>{snake.name}</b>
+            </div>
+            <div className="center-actions">
+              <button className="primary" onClick={() => prepare()}>
+                이 뱀으로 도전하기 →
+              </button>
+              <button className="secondary" onClick={() => edit(true)}>
+                새 뱀 그리기
+              </button>
+            </div>
+            <button className="text-button" onClick={leaveChallenge}>
+              혼자 연습하기
+            </button>
+          </section>
+        )}
         {page === "home" && (
           <section className="game-lobby">
             <div className="arcade-title">
@@ -504,20 +661,7 @@ export default function App() {
                 placeholder="이름을 지어주세요"
               />
             </label>
-            <div className="stats-row">
-              <span>
-                가속력 <b>{stat.acceleration.toFixed(1)}</b>
-              </span>
-              <span>
-                최고 속도 <b>{stat.maxSpeed.toFixed(1)}</b>
-              </span>
-              <span>
-                유연성 <b>{Math.round(stat.flex * 100)}</b>
-              </span>
-            </div>
-            <p className="muted small">
-              체형으로 계산한 특성이에요. 실제 기록은 경기에서 확인하세요.
-            </p>
+            <AbilityPanel stats={stat} />
             <div className="center-actions">
               <button className="secondary" onClick={() => edit()}>
                 그림 수정
@@ -556,6 +700,18 @@ export default function App() {
               </div>
               <span className="muted">작은 몸으로, 큰 도전</span>
             </div>
+            {incoming && (
+              <div className="challenge-banner">
+                <b>
+                  {incoming.snake.name}의 기록 {fmt(incoming.targetTime)}에
+                  도전!
+                </b>
+                <span>코스와 조작 방식은 친구와 같게 고정돼요.</span>
+                <button className="text-button" onClick={leaveChallenge}>
+                  도전 종료
+                </button>
+              </div>
+            )}
             <div className="prepare-grid">
               <div className="racer-profile">
                 <span className="eyebrow">YOUR RACER</span>
@@ -564,56 +720,67 @@ export default function App() {
                 <button className="text-button" onClick={() => edit()}>
                   ✎ 내 뱀 수정
                 </button>
-                <div className="profile-stats">
-                  {[
-                    ["가속력", stat.acceleration / 5],
-                    ["최고 속도", stat.maxSpeed / 10],
-                    ["유연성", stat.flex / 1.3],
-                  ].map(([label, v]) => (
-                    <div key={String(label)}>
-                      <span>{label}</span>
-                      <meter min="0" max="1" value={Number(v)} />
-                    </div>
-                  ))}
-                </div>
+                <AbilityPanel stats={stat} compact />
                 <div className="best-record">
                   <small>
                     나의 {mode === "auto" ? "자동" : "수동"} 최고 기록
                   </small>
-                  <strong>{fmt(best(saved, snake.id, mode))}</strong>
+                  <strong>
+                    {fmt(best(saved, snake.id, mode, RULES_VERSION, course))}
+                  </strong>
                 </div>
+                <p className="record-rule-note">
+                  최고 기록은 현재 체형 규칙 기준이에요.
+                  {best(saved, snake.id, mode, "legacy", course) !== null && (
+                    <span>
+                      이전 규칙 최고:{" "}
+                      {fmt(best(saved, snake.id, mode, "legacy", course))}
+                    </span>
+                  )}
+                </p>
               </div>
               <div className="race-options">
                 <h3>
                   <span>01</span> 어떤 레이스를 달릴까요?
                 </h3>
                 <div className="course-options">
-                  <button className="course selected" aria-pressed="true">
-                    <span className="course-icon">⚑</span>
-                    <div>
-                      <b>100m 달리기</b>
-                      <small>직선 트랙 · 4마리 · 스피드 승부</small>
-                    </div>
-                    <span className="check">✓</span>
-                  </button>
-                  <button className="course" disabled>
-                    <span className="course-icon">⌁</span>
-                    <div>
-                      <b>코스 달리기</b>
-                      <small>다양한 지형에서 펼치는 모험</small>
-                    </div>
-                    <span className="tag">준비 중</span>
-                  </button>
+                  {COURSES.map((c) => (
+                    <button
+                      key={c.id}
+                      className={`course ${course === c.id ? "selected" : ""}`}
+                      aria-pressed={course === c.id}
+                      disabled={!!incoming}
+                      onClick={() => setCourse(c.id)}
+                    >
+                      <span className="course-icon">{c.icon}</span>
+                      <div>
+                        <b>{c.name}</b>
+                        <small>{c.description}</small>
+                      </div>
+                      {course === c.id && <span className="check">✓</span>}
+                    </button>
+                  ))}
                 </div>
                 <h3>
                   <span>02</span> 오늘의 출전 선수
                 </h3>
                 <div className="competitors">
-                  {[snake, ...[1, 2, 3].map(sampleSnake)].map((s, i) => (
+                  {[
+                    snake,
+                    ...(incoming
+                      ? [incoming.snake, ...[2, 3].map(sampleSnake)]
+                      : [1, 2, 3].map(sampleSnake)),
+                  ].map((s, i) => (
                     <div key={i}>
                       <Preview snake={s} />
                       <b>{s.name}</b>
-                      <small>{i === 0 ? "나" : "CPU 0" + i}</small>
+                      <small>
+                        {i === 0
+                          ? "나"
+                          : incoming && i === 1
+                            ? "친구 기록"
+                            : "CPU 0" + i}
+                      </small>
                     </div>
                   ))}
                 </div>
@@ -639,6 +806,7 @@ export default function App() {
                   </div>
                   <button
                     className="secondary"
+                    disabled={!!incoming}
                     onClick={() => setMode(mode === "auto" ? "manual" : "auto")}
                   >
                     {mode === "auto" ? "조작 전환" : "자동으로 전환"} ↔
@@ -649,7 +817,8 @@ export default function App() {
                 </p>
                 <div className="start-area">
                   <span>
-                    100m · 4마리 · {mode === "auto" ? "자동" : "수동"} 달리기
+                    {courseInfo(course).name} · 4마리 ·{" "}
+                    {mode === "auto" ? "자동" : "수동"} 달리기
                   </span>
                   <button className="primary start-button" onClick={start}>
                     경주 시작 <span>→</span>
@@ -668,7 +837,7 @@ export default function App() {
             onDone={onDone}
             onExit={() => prepare()}
             onRestart={() => {
-              setRace(createRace(snake, mode));
+              setRace(createRace(snake, mode, course, incoming));
             }}
           />
         )}
@@ -681,7 +850,8 @@ export default function App() {
                 : "끝까지 달렸어요!"}
             </h1>
             <p className="muted">
-              100m 달리기 · {mode === "auto" ? "자동" : "수동"} 모드
+              {courseInfo(course).name} · {mode === "auto" ? "자동" : "수동"}{" "}
+              모드
             </p>
             <div className="result-hero">
               <Preview snake={snake} />
@@ -734,6 +904,46 @@ export default function App() {
                 내 뱀 수정
               </button>
             </div>
+            {race.challenge && (
+              <div className="challenge-verdict">
+                {race.racers[0].finish === null
+                  ? "이번에는 완주하지 못했어요."
+                  : Math.abs(race.racers[0].finish! - race.racers[1].finish!) <
+                      0.02
+                    ? "친구와 같은 기록이에요!"
+                    : race.racers[0].finish! < race.racers[1].finish!
+                      ? `도전 성공! 친구보다 ${(race.racers[1].finish! - race.racers[0].finish!).toFixed(2)}초 빨랐어요!`
+                      : `친구의 기록까지 ${(race.racers[0].finish! - race.racers[1].finish!).toFixed(2)}초! 다시 도전해 보세요.`}
+              </div>
+            )}
+            {race.racers[0].finish !== null && (
+              <div className="share-challenge">
+                <button
+                  className="primary"
+                  disabled={sharing}
+                  onClick={createChallenge}
+                >
+                  {sharing ? "도전장 만드는 중…" : "친구에게 도전장 보내기 ↗"}
+                </button>
+                {shareURL && (
+                  <div className="share-link-box">
+                    <label>
+                      친구에게 보낼 도전 링크
+                      <input
+                        aria-label="친구 도전 링크"
+                        readOnly
+                        value={shareURL}
+                        onClick={(e) => e.currentTarget.select()}
+                      />
+                    </label>
+                    <button className="secondary" onClick={copyChallenge}>
+                      링크 복사
+                    </button>
+                    <p>친구가 링크로 들어오면 도전하기 화면이 열려요.</p>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="result-links">
               <button className="text-button" onClick={() => prepare()}>
                 다른 코스 선택

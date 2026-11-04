@@ -1,6 +1,10 @@
+import type { CourseId } from "./courses";
+import { RULES_VERSION } from "./model";
 import type { Mode, Snake, Stroke, PartName } from "./model";
 const KEY = "kkumul-race:v1";
 export type RecordEntry = {
+  rulesVersion?: string;
+  course?: CourseId;
   snakeId: string;
   mode: Mode;
   time: number;
@@ -77,9 +81,21 @@ export function save(data: Saved): boolean {
     return false;
   }
 }
-export function best(data: Saved, snakeId: string, mode: Mode) {
+export function best(
+  data: Saved,
+  snakeId: string,
+  mode: Mode,
+  rulesVersion = RULES_VERSION,
+  course: CourseId = "sprint",
+) {
   const times = data.records
-    .filter((r) => r.snakeId === snakeId && r.mode === mode)
+    .filter(
+      (r) =>
+        r.snakeId === snakeId &&
+        r.mode === mode &&
+        (r.rulesVersion || "legacy") === rulesVersion &&
+        (r.course || "sprint") === course,
+    )
     .map((r) => r.time);
   return times.length ? Math.min(...times) : null;
 }

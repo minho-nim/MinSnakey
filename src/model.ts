@@ -1,3 +1,4 @@
+import { vehicleCharacteristics } from "./dynamics";
 import { bodyRig, inkArea, pathLength } from "./geometry";
 export type Point = { x: number; y: number };
 export type Stroke = { points: Point[]; color: string; width: number };
@@ -16,7 +17,21 @@ export type Snake = {
   createdAt: number;
 };
 export type Mode = "auto" | "manual";
+export const RULES_VERSION = "morphology-v1";
 export type Stats = {
+  frontalArea: number;
+  dragCoefficient: number;
+  rollingCoefficient: number;
+  drivePower: number;
+  driveForce: number;
+  efficiency: number;
+  energyCapacity: number;
+  traction: number;
+  size: number;
+  thickness: number;
+  stability: number;
+  grip: number;
+  headLoad: number;
   length: number;
   curve: number;
   flex: number;
@@ -52,10 +67,19 @@ export function bounds(strokes: Stroke[]) {
 export function drawing(strokes: Stroke[], kind: PartName): Drawing {
   const b = bounds(strokes);
   let anchor = { x: kind === "tail" ? b.x + b.w : b.x, y: b.y + b.h / 2 };
-  if(kind!=='body'&&strokes.length){
-    let candidate:Point|undefined;
-    for(const stroke of strokes)for(const point of stroke.points){if(!candidate||(kind==='head'?point.x<candidate.x:point.x>candidate.x)||(point.x===candidate.x&&Math.abs(point.y-anchor.y)<Math.abs(candidate.y-anchor.y)))candidate=point;}
-    if(candidate)anchor={...candidate};
+  if (kind !== "body" && strokes.length) {
+    let candidate: Point | undefined;
+    for (const stroke of strokes)
+      for (const point of stroke.points) {
+        if (
+          !candidate ||
+          (kind === "head" ? point.x < candidate.x : point.x > candidate.x) ||
+          (point.x === candidate.x &&
+            Math.abs(point.y - anchor.y) < Math.abs(candidate.y - anchor.y))
+        )
+          candidate = point;
+      }
+    if (candidate) anchor = { ...candidate };
   }
   if (kind === "body" && strokes.length) {
     const longest = [...strokes].sort(
@@ -81,24 +105,73 @@ export function drawing(strokes: Stroke[], kind: PartName): Drawing {
 }
 export function analyze(s: Snake): Stats {
   const rig = bodyRig(s.parts.body),
-    b = bounds(s.parts.body.strokes);
+    body = s.parts.body,
+    bodyBounds = bounds(body.strokes);
   const length = rig.length,
     curve = rig.curve;
-  const area =
-    inkArea(s.parts.body.strokes) +
+  const bodyPath = body.strokes.reduce(
+    (n, stroke) => n + Math.max(1, pathLength(stroke.points)),
+    0,
+  );
+  const meanWidth = bodyPath ? inkArea(body.strokes) / bodyPath : 12;
+  const thickness = clamp(meanWidth * rig.scale, 0.03, 0.65);
+  const headBounds = bounds(s.parts.head.strokes),
+    tailBounds = bounds(s.parts.tail.strokes);
+  const headArea = s.parts.head.strokes.length
+    ? headBounds.w * headBounds.h * rig.scale ** 2
+    : 0;
+  const tailArea = s.parts.tail.strokes.length
+    ? tailBounds.w * tailBounds.h * rig.scale ** 2
+    : 0;
+  const ink =
+    inkArea(body.strokes) +
     inkArea(s.parts.head.strokes) +
     inkArea(s.parts.tail.strokes);
-  const mass = clamp(0.5 + area / 18000, 0.65, 3.8);
-  const flex = clamp(0.9 + curve * 0.17 - b.h / 1000, 0.5, 1.3);
+  const mass = clamp(
+    0.5 + ink / 16000 + Math.min(headArea + tailArea, 12) * 0.075,
+    0.65,
+    4.5,
+  );
+  // Size is occupied body bulk, not body length a second time.
+  const size = clamp(
+    thickness +
+      Math.sqrt(headArea) * 0.45 +
+      Math.min(bodyBounds.h * rig.scale, 2) * 0.15,
+    0.08,
+    2.5,
+  );
+  const long = clamp((length - 1.5) / 5, 0, 1),
+    weight = clamp((mass - 0.65) / 3.85, 0, 1),
+    bulk = clamp((size - 0.08) / 1.52, 0, 1);
+  const headLoad = clamp(
+    headArea / Math.max(0.1, length * thickness + 0.1),
+    0,
+    3,
+  );
+  const flex = clamp(
+    1.25 - 0.22 * bulk - 0.2 * weight + 0.1 * Math.min(curve, 1) - 0.1 * long,
+    0.45,
+    1.3,
+  );
+  const vehicle = vehicleCharacteristics({
+    length,
+    mass,
+    size,
+    thickness,
+    curve,
+    headLoad,
+    flex,
+  });
   return {
     length,
     curve,
     flex,
     mass,
-    acceleration: clamp(4.6 / mass, 1.7, 5.5),
-    maxSpeed: clamp(9.3 + flex - length * 0.25 - mass * 0.18, 6.5, 10),
-    stamina: clamp(0.82 + length * 0.04, 0.9, 1.1),
-    amplitude: clamp(0.2 + curve * 0.045, 0.2, 0.38),
+    size,
+    thickness,
+    headLoad,
+    ...vehicle,
+    amplitude: clamp(0.2 + curve * 0.04 + flex * 0.02, 0.2, 0.38),
     frequency: clamp(1.85 - length * 0.065 + flex * 0.15, 1.2, 1.95),
   };
 }

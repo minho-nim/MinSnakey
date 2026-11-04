@@ -1,3 +1,14 @@
+import type { Challenge, ReplayInput } from "./challenge";
+import { terrainAt, type CourseId } from "./courses";
+import {
+  AIR_DENSITY,
+  WATER_DENSITY,
+  GRAVITY,
+  fluidDrag,
+  rollingForce,
+  slopeForce,
+  submergedCircleArea,
+} from "./dynamics";
 import { bodyRig } from "./geometry";
 import {
   analyze,
@@ -29,6 +40,10 @@ export type Racer = {
   impulse: number;
 };
 export type Race = {
+  course: CourseId;
+  inputs: ReplayInput[];
+  challenge: Challenge | null;
+  ghostInputIndex: number;
   racers: Racer[];
   mode: Mode;
   time: number;
@@ -64,11 +79,28 @@ export function createRacer(snake: Snake): Racer {
     impulse: 0,
   };
 }
-export function createRace(snake: Snake, mode: Mode): Race {
+export function createRace(
+  snake: Snake,
+  mode: Mode,
+  course: CourseId = "sprint",
+  challenge: Challenge | null = null,
+): Race {
   return {
+    course,
+    inputs: [],
+    challenge,
+    ghostInputIndex: 0,
     racers: [
       createRacer(snake),
-      ...[1, 2, 3].map((i) => createRacer(sampleSnake(i))),
+      ...(challenge
+        ? [
+            createRacer({
+              ...challenge.snake,
+              id: "opponent:" + challenge.snake.id,
+            }),
+            ...[2, 3].map((i) => createRacer(sampleSnake(i))),
+          ]
+        : [1, 2, 3].map((i) => createRacer(sampleSnake(i)))),
     ],
     mode,
     time: 0,
@@ -79,21 +111,37 @@ export function createRace(snake: Snake, mode: Mode): Race {
     timedOut: false,
   };
 }
-export function propel(race: Race, side: number) {
-  if (race.paused || race.done || race.countdown > 0 || race.mode !== "manual")
-    return;
-  const r = race.racers[0],
-    interval = race.time - r.lastInput;
-  if (side === r.lastSide || interval < 0.12) return;
+function applyInput(r: Racer, side: number, time: number) {
+  const interval = time - r.lastInput;
+  if (side === r.lastSide || interval < 0.12) return false;
   const ideal = 1 / (r.stats.frequency * 2),
     quality = clamp(1 - Math.abs(interval - ideal) / ideal, 0.2, 1);
-  r.impulse = Math.min(1.1, r.impulse + 0.62 * quality);
-  r.lastInput = race.time;
+  r.impulse = Math.min(1.1, r.impulse + 0.4 + 0.35 * quality);
+  r.lastInput = time;
   r.lastSide = side;
+  return true;
+}
+export function propel(race: Race, side: number) {
+  if (
+    race.paused ||
+    race.done ||
+    race.countdown > 0 ||
+    race.mode !== "manual" ||
+    race.racers[0].finish !== null
+  )
+    return;
+  if (applyInput(race.racers[0], side, race.time))
+    race.inputs.push({ time: race.time, side });
 }
 // Active backbone, inextensible links, and lateral contact work. This is a
 // bounded game locomotion model, not a full rigid-body/bio-mechanical solver.
-export function stepRacer(r: Racer, dt: number, drive: number, time: number) {
+export function stepRacer(
+  r: Racer,
+  dt: number,
+  drive: number,
+  time: number,
+  terrain = { grade: 0, waterDepth: 0 },
+) {
   if (r.finish !== null) return;
   const s = r.stats,
     n = r.nodes.length;
@@ -135,12 +183,44 @@ export function stepRacer(r: Racer, dt: number, drive: number, time: number) {
     contactWork += Math.abs(normalVelocity * slope);
   }
   contactWork /= n - 1;
-  r.energy = clamp(r.energy - (dt * r.drive * 0.004) / s.stamina, 0.65, 1);
-  const traction = clamp(contactWork * 5, 0.0, 1.35) * r.drive;
-  const force = s.acceleration * traction * r.energy;
-  const drag = 0.2 * r.speed + 0.033 * r.speed * r.speed;
-  const fatigueLimit = s.maxSpeed * (0.85 + 0.15 * r.energy);
-  r.speed = clamp(r.speed + dt * (force - drag), 0, fatigueLimit);
+  r.energy = clamp(
+    r.energy - (dt * r.drive * s.drivePower) / s.energyCapacity,
+    0.55,
+    1,
+  );
+  const coupling = clamp(contactWork * 5, 0, 1),
+    wet = terrain.waterDepth > 0;
+  const submergedFraction = wet
+    ? clamp(terrain.waterDepth / s.thickness, 0, 1)
+    : 0;
+  const buoyancy =
+    WATER_DENSITY * GRAVITY * (s.mass / 1050) * submergedFraction;
+  const normalForce = Math.max(
+    0,
+    (s.mass * GRAVITY) / Math.sqrt(1 + terrain.grade ** 2) - buoyancy,
+  );
+  const tractionLimit = s.grip * (wet ? 0.65 : 1) * normalForce;
+  const motorForce =
+    Math.min(s.driveForce, s.drivePower / Math.max(0.5, r.speed)) *
+    s.efficiency *
+    r.energy *
+    coupling *
+    r.drive;
+  const thrust = Math.min(motorForce, tractionLimit);
+  const air = fluidDrag(AIR_DENSITY, s.dragCoefficient, s.frontalArea, r.speed);
+  const water = wet
+    ? fluidDrag(
+        WATER_DENSITY,
+        s.dragCoefficient * 1.15,
+        submergedCircleArea(s.thickness, terrain.waterDepth),
+        r.speed,
+      )
+    : 0;
+  const ground = s.rollingCoefficient * normalForce;
+  const resistance = air + water + ground + slopeForce(s.mass, terrain.grade);
+  const limit =
+    terrain.grade < 0 ? Math.min(18, s.maxSpeed * 1.35) : s.maxSpeed;
+  r.speed = clamp(r.speed + (dt * (thrust - resistance)) / s.mass, 0, limit);
   const before = r.distance;
   r.distance += r.speed * dt;
   r.peak = Math.max(r.peak, r.speed);
@@ -158,39 +238,74 @@ export function stepRace(race: Race, dt = DT) {
     race.countdown = Math.max(0, race.countdown - dt);
     return;
   }
+  if (race.challenge?.mode === "manual") {
+    const inputs = race.challenge.inputs;
+    while (
+      race.ghostInputIndex < inputs.length &&
+      inputs[race.ghostInputIndex].time <= race.time + dt / 2
+    ) {
+      const input = inputs[race.ghostInputIndex++];
+      applyInput(race.racers[1], input.side, race.time);
+    }
+  }
   race.time += dt;
   race.racers.forEach((r, i) => {
     let drive = 1;
-    if (i === 0 && race.mode === "manual") {
+    if (
+      (i === 0 && race.mode === "manual") ||
+      (i === 1 && race.challenge?.mode === "manual")
+    ) {
       r.impulse = Math.max(0, r.impulse - dt * 1.25);
       drive = clamp(r.impulse, 0, 1);
     }
-    stepRacer(r, dt, drive, race.time);
+    stepRacer(r, dt, drive, race.time, terrainAt(race.course, r.distance));
   });
   race.timedOut = race.time >= 90;
   race.done = race.timedOut || race.racers.every((r) => r.finish !== null);
 }
-export function advance(race: Race, elapsed: number, playbackRate=1) {
+export function advance(race: Race, elapsed: number, playbackRate = 1) {
   if (race.paused || race.done) return;
-  let wallTime=Number.isFinite(elapsed)?clamp(elapsed,0,.25):0;
+  let wallTime = Number.isFinite(elapsed) ? clamp(elapsed, 0, 0.25) : 0;
   // Keep the countdown readable in real time; only racing is accelerated.
-  if(race.countdown>0){const used=Math.min(wallTime,race.countdown);race.countdown-=used;wallTime-=used;}
-  const rate=Number.isFinite(playbackRate)?clamp(playbackRate,1,6):1;
+  if (race.countdown > 0) {
+    const used = Math.min(wallTime, race.countdown);
+    race.countdown -= used;
+    wallTime -= used;
+  }
+  const rate = Number.isFinite(playbackRate) ? clamp(playbackRate, 1, 6) : 1;
   // Clamp real frame gaps before scaling so 6x playback also works at low FPS.
-  race.accumulator += wallTime*rate;
+  race.accumulator += wallTime * rate;
   while (race.accumulator >= DT) {
     stepRace(race);
     race.accumulator -= DT;
   }
 }
-export function finishRace(race:Race){
-  if(race.done)return;
-  race.paused=false;
-  race.countdown=0;
+export function finishRace(race: Race) {
+  if (race.done) return;
+  race.paused = false;
+  race.countdown = 0;
   // Continue the exact current state and controls. Manual racers receive no
   // invented inputs; if they cannot finish, the existing 90-second limit applies.
-  for(let i=0;i<Math.ceil(91/DT)&&!race.done;i++)stepRace(race);
-  race.accumulator=0;
+  for (let i = 0; i < Math.ceil(91 / DT) && !race.done; i++) stepRace(race);
+  race.accumulator = 0;
+}
+export function verifyChallengeRecord(challenge: Challenge) {
+  const replay = createRace(challenge.snake, challenge.mode, challenge.course);
+  replay.countdown = 0;
+  let inputIndex = 0;
+  while (!replay.done) {
+    while (
+      inputIndex < challenge.inputs.length &&
+      challenge.inputs[inputIndex].time <= replay.time + DT / 2
+    ) {
+      propel(replay, challenge.inputs[inputIndex++].side);
+    }
+    stepRace(replay);
+  }
+  return (
+    replay.racers[0].finish !== null &&
+    Math.abs(replay.racers[0].finish! - challenge.targetTime) < DT * 2
+  );
 }
 export function standings(race: Race) {
   return [...race.racers].sort((a, b) =>

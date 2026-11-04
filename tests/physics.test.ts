@@ -180,33 +180,232 @@ test("eraser cuts the touched part of a sparse stroke and leaves its ends", () =
   assert.equal(strokes[0].points.length, 2);
 });
 
-test('default part connectors lie on actual source ink, including single dots',()=>{
- for(const kind of ['head','tail'] as const){const points=[{x:20,y:40},{x:90,y:170},{x:160,y:40}];const part=drawing([{points,color:'#365939',width:8}],kind);assert.ok(points.some(p=>p.x===part.anchor.x&&p.y===part.anchor.y));const dot=drawing([{points:[{x:70,y:20}],color:'#365939',width:8}],kind);assert.deepEqual(dot.anchor,{x:70,y:20});}
+test("default part connectors lie on actual source ink, including single dots", () => {
+  for (const kind of ["head", "tail"] as const) {
+    const points = [
+      { x: 20, y: 40 },
+      { x: 90, y: 170 },
+      { x: 160, y: 40 },
+    ];
+    const part = drawing([{ points, color: "#365939", width: 8 }], kind);
+    assert.ok(
+      points.some((p) => p.x === part.anchor.x && p.y === part.anchor.y),
+    );
+    const dot = drawing(
+      [{ points: [{ x: 70, y: 20 }], color: "#365939", width: 8 }],
+      kind,
+    );
+    assert.deepEqual(dot.anchor, { x: 70, y: 20 });
+  }
 });
 
-import {finishRace} from '../src/physics';
-import {trackScale,type RaceCamera} from '../src/render';
-test('track zoom stays constant throughout motion and recalculates only on viewport resize',()=>{
- const race=createRace(sampleSnake(),'auto'),camera:RaceCamera={x:-2};const initial=trackScale(race,camera,390,350);
- for(let i=0;i<1200;i++){stepRace(race);assert.equal(trackScale(race,camera,390,350),initial)}
- const resized=trackScale(race,camera,1080,420);assert.notEqual(resized,initial);
- for(let i=0;i<120;i++){stepRace(race);assert.equal(trackScale(race,camera,1080,420),resized)}
- assert.equal(trackScale(race,{x:-2},390,350),initial);
+import { finishRace } from "../src/physics";
+import { trackScale, type RaceCamera } from "../src/render";
+test("track zoom stays constant throughout motion and recalculates only on viewport resize", () => {
+  const race = createRace(sampleSnake(), "auto"),
+    camera: RaceCamera = { x: -2 };
+  const initial = trackScale(race, camera, 390, 350);
+  for (let i = 0; i < 1200; i++) {
+    stepRace(race);
+    assert.equal(trackScale(race, camera, 390, 350), initial);
+  }
+  const resized = trackScale(race, camera, 1080, 420);
+  assert.notEqual(resized, initial);
+  for (let i = 0; i < 120; i++) {
+    stepRace(race);
+    assert.equal(trackScale(race, camera, 1080, 420), resized);
+  }
+  assert.equal(trackScale(race, { x: -2 }, 390, 350), initial);
 });
-test('fast playback keeps countdown in real time and preserves exact auto results',()=>{
- const normal=createRace(sampleSnake(),'auto'),fast=createRace(sampleSnake(),'auto');
- for(let i=0;i<60;i++){advance(normal,1/60,1);advance(fast,1/60,6)}
- assert.equal(normal.time,0);assert.equal(fast.time,0);assert.equal(normal.countdown,fast.countdown);
- for(let i=0;i<3600;i++)advance(normal,1/60,1);
- for(let i=0;i<900;i++)advance(fast,1/30,6);
- normal.racers.forEach((r,i)=>assert.equal(fast.racers[i].finish,r.finish));
+test("fast playback keeps countdown in real time and preserves exact auto results", () => {
+  const normal = createRace(sampleSnake(), "auto"),
+    fast = createRace(sampleSnake(), "auto");
+  for (let i = 0; i < 60; i++) {
+    advance(normal, 1 / 60, 1);
+    advance(fast, 1 / 60, 6);
+  }
+  assert.equal(normal.time, 0);
+  assert.equal(fast.time, 0);
+  assert.equal(normal.countdown, fast.countdown);
+  for (let i = 0; i < 3600; i++) advance(normal, 1 / 60, 1);
+  for (let i = 0; i < 900; i++) advance(fast, 1 / 30, 6);
+  normal.racers.forEach((r, i) =>
+    assert.equal(fast.racers[i].finish, r.finish),
+  );
 });
-test('result shortcut computes remaining race from current state without altering prior finish records',()=>{
- const direct=createRace(sampleSnake(),'auto'),full=createRace(sampleSnake(),'auto');for(let i=0;i<700;i++){stepRace(direct);stepRace(full)}
- direct.paused=true;finishRace(direct);while(!full.done)stepRace(full);
- assert.equal(direct.done,true);direct.racers.forEach((r,i)=>assert.equal(r.finish,full.racers[i].finish));
- const times=direct.racers.map(r=>r.finish);finishRace(direct);assert.deepEqual(direct.racers.map(r=>r.finish),times);
+test("result shortcut computes remaining race from current state without altering prior finish records", () => {
+  const direct = createRace(sampleSnake(), "auto"),
+    full = createRace(sampleSnake(), "auto");
+  for (let i = 0; i < 700; i++) {
+    stepRace(direct);
+    stepRace(full);
+  }
+  direct.paused = true;
+  finishRace(direct);
+  while (!full.done) stepRace(full);
+  assert.equal(direct.done, true);
+  direct.racers.forEach((r, i) =>
+    assert.equal(r.finish, full.racers[i].finish),
+  );
+  const times = direct.racers.map((r) => r.finish);
+  finishRace(direct);
+  assert.deepEqual(
+    direct.racers.map((r) => r.finish),
+    times,
+  );
 });
-test('result shortcut never invents manual inputs or converts control mode',()=>{
- const manual=createRace(sampleSnake(),'manual');finishRace(manual);assert.equal(manual.done,true);assert.equal(manual.mode,'manual');assert.equal(manual.racers[0].finish,null);assert.equal(manual.racers[0].distance,0);assert.equal(manual.timedOut,true);assert.ok(manual.racers.slice(1).every(r=>r.finish!==null));
+test("result shortcut never invents manual inputs or converts control mode", () => {
+  const manual = createRace(sampleSnake(), "manual");
+  finishRace(manual);
+  assert.equal(manual.done, true);
+  assert.equal(manual.mode, "manual");
+  assert.equal(manual.racers[0].finish, null);
+  assert.equal(manual.racers[0].distance, 0);
+  assert.equal(manual.timedOut, true);
+  assert.ok(manual.racers.slice(1).every((r) => r.finish !== null));
+});
+
+import {
+  fluidDrag,
+  AIR_DENSITY,
+  WATER_DENSITY,
+  vehicleCharacteristics,
+  slopeForce,
+} from "../src/dynamics";
+import { RULES_VERSION } from "../src/model";
+import { best } from "../src/storage";
+import { challengeLink, readChallenge, validChallenge } from "../src/challenge";
+import { verifyChallengeRecord } from "../src/physics";
+test("fluid drag follows density, area and velocity-squared law", () => {
+  const drag = fluidDrag(AIR_DENSITY, 0.4, 0.1, 5);
+  assert.equal(fluidDrag(AIR_DENSITY, 0.4, 0.1, 10), drag * 4);
+  assert.equal(fluidDrag(AIR_DENSITY, 0.4, 0.2, 5), drag * 2);
+  assert.ok(
+    Math.abs(
+      fluidDrag(WATER_DENSITY, 0.4, 0.1, 5) / drag -
+        WATER_DENSITY / AIR_DENSITY,
+    ) < 1e-9,
+  );
+});
+test("same engine and geometry: added mass reduces acceleration and raises traction limit", () => {
+  const shape = {
+    length: 4,
+    mass: 1,
+    size: 0.6,
+    thickness: 0.18,
+    curve: 0.2,
+    headLoad: 0.5,
+    flex: 1,
+  };
+  const a = vehicleCharacteristics(shape),
+    b = vehicleCharacteristics({ ...shape, mass: 2 });
+  assert.equal(a.drivePower, b.drivePower);
+  assert.ok(b.acceleration < a.acceleration);
+  assert.equal(b.traction, a.traction * 2);
+  assert.ok(b.maxSpeed < a.maxSpeed);
+  assert.equal(slopeForce(2, 0.1), slopeForce(1, 0.1) * 2);
+  assert.equal(slopeForce(1, -0.1), -slopeForce(1, 0.1));
+});
+test("larger frontal bulk increases area quadratically and lowers terminal speed", () => {
+  const shape = {
+    length: 4,
+    mass: 1,
+    size: 0.4,
+    thickness: 0.1,
+    curve: 0.2,
+    headLoad: 0.5,
+    flex: 1,
+  };
+  const a = vehicleCharacteristics(shape),
+    b = vehicleCharacteristics({ ...shape, size: 0.8 });
+  assert.ok(Math.abs(b.frontalArea / a.frontalArea - 4) < 1e-9);
+  assert.ok(b.maxSpeed < a.maxSpeed);
+});
+test("hills and water courses finish using the same simulation with distinct results", () => {
+  const times: number[] = [];
+  for (const course of ["sprint", "hills", "puddles"] as const) {
+    const race = createRace(sampleSnake(), "auto", course);
+    finishRace(race);
+    assert.equal(race.timedOut, false);
+    assert.ok(race.racers.every((r) => r.finish !== null));
+    times.push(race.racers[0].finish!);
+  }
+  assert.notEqual(times[0], times[1]);
+  assert.ok(times[2] > times[0]);
+});
+test("personal records preserve legacy entries while comparing only matching rules and courses", () => {
+  const id = sampleSnake().id,
+    legacy = { snakeId: id, mode: "auto" as const, time: 3, date: 1 };
+  const current = {
+    ...legacy,
+    time: 12,
+    rulesVersion: RULES_VERSION,
+    course: "sprint" as const,
+  };
+  const water = { ...current, time: 19, course: "puddles" as const };
+  const data = { snakes: [], records: [legacy, current, water] };
+  assert.equal(best(data, id, "auto"), 12);
+  assert.equal(best(data, id, "auto", "legacy"), 3);
+  assert.equal(best(data, id, "auto", RULES_VERSION, "puddles"), 19);
+  assert.equal(data.records.length, 3);
+});
+test("automatic challenge link preserves original artwork, course and verified race time", async () => {
+  const race = createRace(sampleSnake(), "auto", "puddles");
+  finishRace(race);
+  const link = await challengeLink(race, "https://example.com/game/");
+  const invite = await readChallenge(new URL(link).hash);
+  assert.ok(invite);
+  assert.deepEqual(invite.snake.parts, race.racers[0].snake.parts);
+  assert.equal(invite.course, "puddles");
+  assert.ok(verifyChallengeRecord(invite));
+  const battle = createRace(sampleSnake(2), "auto", invite.course, invite);
+  finishRace(battle);
+  assert.ok(Math.abs(battle.racers[1].finish! - invite.targetTime) < DT * 2);
+  assert.equal(validChallenge({ ...invite, rules: "old" }), false);
+  assert.equal(
+    verifyChallengeRecord({ ...invite, targetTime: invite.targetTime + 3 }),
+    false,
+  );
+});
+test("manual challenge replays only actual accepted controls and matches original finish", async () => {
+  const race = createRace(sampleSnake(), "manual");
+  race.countdown = 0;
+  let side = 1;
+  for (let tick = 0; tick < 120 * 90 && !race.done; tick++) {
+    if (tick % 34 === 0) {
+      side = -side;
+      propel(race, side);
+    }
+    stepRace(race);
+  }
+  assert.ok(race.racers[0].finish !== null);
+  assert.ok(race.inputs.length > 10);
+  const link = await challengeLink(race, "https://example.com/");
+  const invite = (await readChallenge(new URL(link).hash))!;
+  assert.ok(verifyChallengeRecord(invite));
+  const battle = createRace(sampleSnake(2), "manual", invite.course, invite);
+  finishRace(battle);
+  assert.equal(battle.racers[0].finish, null);
+  assert.ok(
+    Math.abs(battle.racers[1].finish! - race.racers[0].finish!) < DT * 2,
+  );
+});
+test("corrupt challenge links are rejected without executing or accepting their record", async () => {
+  await assert.rejects(() => readChallenge("#challenge=broken"));
+  assert.equal(await readChallenge("#hello"), null);
+  assert.equal(validChallenge({ v: 1 }), false);
+});
+
+test("reasonable slower alternating manual inputs still overcome ground resistance", () => {
+  const race = createRace(sampleSnake(), "manual");
+  race.countdown = 0;
+  let side = 1;
+  for (let tick = 0; tick < 120 * 10; tick++) {
+    if (tick % 61 === 0) {
+      side = -side;
+      propel(race, side);
+    }
+    stepRace(race);
+  }
+  assert.ok(race.racers[0].distance > 0.1);
 });
