@@ -179,3 +179,63 @@ export function partFrame(rig: BodyRig, nodes: Point[], kind: "head" | "tail") {
   );
   return { node, angle };
 }
+
+const fittedRigs = new WeakMap<
+  Drawing,
+  { head: Drawing; tail: Drawing; rig: BodyRig; factor: number }
+>();
+/** Fit assembled ink uniformly into a shared race class; source drawings stay intact. */
+export function snakeRig(snake: import("./model").Snake): BodyRig {
+  const { head, body, tail } = snake.parts,
+    previous = fittedRigs.get(body);
+  if (previous?.head === head && previous.tail === tail) return previous.rig;
+  const base = bodyRig(body);
+  let left = Infinity,
+    right = -Infinity,
+    top = Infinity,
+    bottom = -Infinity;
+  const include = (p: Point, width: number) => {
+    left = Math.min(left, p.x - width / 2);
+    right = Math.max(right, p.x + width / 2);
+    top = Math.min(top, p.y - width / 2);
+    bottom = Math.max(bottom, p.y + width / 2);
+  };
+  body.strokes.forEach((stroke, i) =>
+    stroke.points.forEach((_, j) =>
+      include(
+        skinPoint(base.bindings[i][j], base.rest, base.scale),
+        stroke.width * base.scale,
+      ),
+    ),
+  );
+  for (const kind of ["head", "tail"] as const) {
+    const { node, angle } = partFrame(base, base.rest, kind),
+      co = Math.cos(angle),
+      si = Math.sin(angle),
+      part = snake.parts[kind];
+    for (const stroke of part.strokes)
+      for (const p of stroke.points) {
+        const px = (p.x - part.anchor.x) * base.scale,
+          py = (p.y - part.anchor.y) * base.scale;
+        include(
+          { x: node.x + px * co - py * si, y: node.y + px * si + py * co },
+          stroke.width * base.scale,
+        );
+      }
+  }
+  const w = Math.max(0.1, right - left),
+    h = Math.max(0.1, bottom - top);
+  const factor = Math.min(
+    6.4 / w,
+    1.6 / h,
+    Math.max(1, Math.min(1.35, 4.2 / w)),
+  );
+  const rig = {
+    ...base,
+    scale: base.scale * factor,
+    length: base.length * factor,
+    rest: base.rest.map((p) => ({ x: p.x * factor, y: p.y * factor })),
+  };
+  fittedRigs.set(body, { head, tail, rig, factor });
+  return rig;
+}

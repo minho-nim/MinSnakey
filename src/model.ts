@@ -1,5 +1,5 @@
 import { vehicleCharacteristics } from "./dynamics";
-import { bodyRig, inkArea, pathLength } from "./geometry";
+import { snakeRig, inkArea, pathLength } from "./geometry";
 export type Point = { x: number; y: number };
 export type Stroke = { points: Point[]; color: string; width: number };
 export type PartName = "head" | "body" | "tail";
@@ -17,7 +17,7 @@ export type Snake = {
   createdAt: number;
 };
 export type Mode = "auto" | "manual";
-export const RULES_VERSION = "morphology-v3";
+export const RULES_VERSION = "morphology-v4";
 export type Stats = {
   frontalArea: number;
   dragCoefficient: number;
@@ -106,7 +106,7 @@ export function drawing(strokes: Stroke[], kind: PartName): Drawing {
   };
 }
 export function analyze(s: Snake): Stats {
-  const rig = bodyRig(s.parts.body),
+  const rig = snakeRig(s),
     body = s.parts.body,
     bodyBounds = bounds(body.strokes);
   const length = rig.length,
@@ -130,7 +130,9 @@ export function analyze(s: Snake): Stats {
     inkArea(s.parts.head.strokes) +
     inkArea(s.parts.tail.strokes);
   const mass = clamp(
-    0.4 + (ink / 10500) ** 1.35 + Math.min(headArea + tailArea, 12) * 0.13,
+    0.4 +
+      ((ink * (rig.scale * 95) ** 2) / 10500) ** 1.35 +
+      Math.min(headArea + tailArea, 12) * 0.13,
     0.45,
     7.5,
   );
@@ -424,4 +426,47 @@ export function sampleSnake(index = 0): Snake {
     },
     createdAt: Date.now(),
   };
+}
+
+const opponentCache = new WeakMap<Snake, Snake[]>();
+/** Select nearby equipment classes from actual drawings, never race progress. */
+export function matchedOpponents(player: Snake): Snake[] {
+  const cached = opponentCache.get(player);
+  if (cached) return cached;
+  const pace = (s: Stats) =>
+    100 / Math.max(1, s.maxSpeed) +
+    s.maxSpeed / (2 * Math.max(0.25, s.acceleration));
+  const target = pace(analyze(player));
+  const opponents = [1, 2, 3].map((index) => {
+    const template = sampleSnake(index),
+      desired = target * [0.98, 1.04, 1.09][index - 1];
+    let chosen = template,
+      error = Infinity;
+    for (let j = 0; j < 18; j++) {
+      const factor = 0.45 + j * 0.23;
+      const candidate = {
+        ...template,
+        parts: Object.fromEntries(
+          (["head", "body", "tail"] as const).map((kind) => [
+            kind,
+            {
+              ...template.parts[kind],
+              strokes: template.parts[kind].strokes.map((stroke) => ({
+                ...stroke,
+                width: clamp(stroke.width * factor, 1, 40),
+              })),
+            },
+          ]),
+        ) as Snake["parts"],
+      };
+      const difference = Math.abs(Math.log(pace(analyze(candidate)) / desired));
+      if (difference < error) {
+        chosen = candidate;
+        error = difference;
+      }
+    }
+    return chosen;
+  });
+  opponentCache.set(player, opponents);
+  return opponents;
 }

@@ -9,11 +9,11 @@ import {
   slopeForce,
   submergedCircleArea,
 } from "./dynamics";
-import { bodyRig } from "./geometry";
+import { snakeRig } from "./geometry";
 import {
   analyze,
   clamp,
-  sampleSnake,
+  matchedOpponents,
   type Snake,
   type Stats,
   type Mode,
@@ -63,7 +63,7 @@ export type Race = {
 };
 export function createRacer(snake: Snake): Racer {
   const stats = analyze(snake);
-  const rig = bodyRig(snake.parts.body);
+  const rig = snakeRig(snake);
   const nodes = rig.rest.map((p) => ({ ...p }));
   const links = nodes
     .slice(1)
@@ -114,9 +114,9 @@ export function createRace(
               ...challenge.snake,
               id: "opponent:" + challenge.snake.id,
             }),
-            ...[2, 3].map((i) => createRacer(sampleSnake(i))),
+            ...matchedOpponents(snake).slice(1).map(createRacer),
           ]
-        : [1, 2, 3].map((i) => createRacer(sampleSnake(i)))),
+        : matchedOpponents(snake).map(createRacer)),
     ],
     mode,
     time: 0,

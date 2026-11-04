@@ -17,7 +17,7 @@ import {
   type Snake,
   type Stroke,
 } from "./model";
-import { bodyRig, eraseStrokes, inkArea } from "./geometry";
+import { snakeRig, bodyRig, eraseStrokes, inkArea } from "./geometry";
 import { fitCanvas, renderPreview } from "./render";
 import { previewRacer } from "./physics";
 const W = 480,
@@ -261,7 +261,7 @@ export default function Workshop({
     current = live || values[kind];
   const draft = { ...snake, parts: { ...values, [kind]: current } },
     stats = analyze(draft),
-    rig = bodyRig(draft.parts.body),
+    rig = snakeRig(draft),
     ink = inkArea(current.strokes),
     preview = useRef<HTMLCanvasElement>(null);
   useEffect(() => {

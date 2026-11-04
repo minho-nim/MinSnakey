@@ -3230,3 +3230,9 @@ meter::-webkit-meter-optimum-value {
 .race-status-line {
   flex-wrap: wrap;
 }
+.class-note {
+  font-size: 11px;
+  line-height: 1.7;
+  color: #718052;
+  margin: 10px 0 14px;
+}
