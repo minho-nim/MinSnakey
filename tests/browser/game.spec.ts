@@ -1,0 +1,164 @@
+import { test, expect } from "@playwright/test";
+test("draw three parts, assemble, save, run race to finish and persist record", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await expect(page.getByLabel("머리 그리기 캔버스")).toBeVisible();
+  for (const name of ["머리", "몸통", "꼬리"]) {
+    const canvas = page.getByLabel(`${name} 그리기 캔버스`);
+    const b = (await canvas.boundingBox())!;
+    await page.mouse.move(b.x + 45, b.y + b.height / 2);
+    await page.mouse.down();
+    for (let i = 0; i < 18; i++)
+      await page.mouse.move(
+        b.x + 45 + (i * (b.width - 90)) / 17,
+        b.y + b.height / 2 + Math.sin(i * 0.8) * 22,
+      );
+    await page.mouse.up();
+    await page
+      .getByRole("button", { name: name === "꼬리" ? /조립!/ : /^다음/ })
+      .click();
+  }
+  await expect(
+    page.getByRole("heading", { name: "반가워, 나의 꼬물이!" }),
+  ).toBeVisible();
+  await page.getByRole("textbox").fill("테스트 꿈틀이");
+  await page.getByRole("button", { name: "경기 준비하러 →" }).click();
+  await expect(page.getByText("현재 조작: 자동 달리기")).toBeVisible();
+  await page.getByRole("button", { name: "조작 전환 ↔" }).click();
+  await expect(page.getByText("현재 조작: 수동 달리기")).toBeVisible();
+  await page.getByRole("button", { name: "자동으로 전환 ↔" }).click();
+  await page.clock.install();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.clock.runFor(2000);
+  await expect(page.getByTestId("distance")).toHaveText("0.0/ 100m");
+  await page.clock.runFor(4500);
+  await expect(page.getByTestId("distance")).not.toHaveText("0.0/ 100m");
+  await page.getByRole("button", { name: "Ⅱ 일시정지" }).click();
+  const before = await page.getByTestId("time").innerText();
+  await page.clock.runFor(2000);
+  expect(await page.getByTestId("time").innerText()).toBe(before);
+  await page.getByRole("button", { name: "계속 달리기 →" }).click();
+  await page.clock.runFor(60000);
+  await expect(
+    page.getByRole("heading", { name: "끝까지 달렸어요!" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "메인 화면", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "테스트 꿈틀이" }),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "내 뱀", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "테스트 꿈틀이" }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+test("mobile layout, manual controls, restart, exit and mode reset", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({ path: "docs/home-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await page.screenshot({ path: "docs/prepare-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "조작 전환 ↔" }).click();
+  await page.clock.install();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.clock.runFor(3500);
+  for (let i = 0; i < 20; i++) {
+    await page
+      .getByRole("button", {
+        name: i % 2 ? "오른쪽 추진" : "왼쪽 추진",
+        exact: true,
+      })
+      .dispatchEvent("pointerdown");
+    await page.clock.runFor(340);
+  }
+  await expect(page.getByTestId("distance")).not.toHaveText("0.0/ 100m");
+  await page.screenshot({ path: "docs/race-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "Ⅱ 일시정지" }).click();
+  await page.getByRole("button", { name: "처음부터 다시" }).click();
+  await expect(page.getByTestId("distance")).toHaveText("0.0/ 100m");
+  await page.getByRole("button", { name: "Ⅱ 일시정지" }).click();
+  await page.getByRole("button", { name: "경기 종료", exact: true }).click();
+  await page.getByRole("button", { name: "경기 종료", exact: true }).click();
+  await expect(page.getByText("현재 조작: 자동 달리기")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+test("desktop layout has no overflow and screenshot", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await page.screenshot({ path: "docs/home-desktop.png", fullPage: true });
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await page.screenshot({ path: "docs/prepare-desktop.png", fullPage: true });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("drawing desk supports partial erasing, undo, live stats and movable connections", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const canvas = page.getByLabel("머리 그리기 캔버스"),
+    box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + 45, box.y + 120);
+  await page.mouse.down();
+  for (let i = 0; i <= 20; i++)
+    await page.mouse.move(
+      box.x + 45 + i * 10,
+      box.y + 120 + Math.sin(i / 3) * 15,
+    );
+  await page.mouse.up();
+  await expect(page.getByLabel("그림 분석")).toContainText("머리 완성 중");
+  const before = await canvas.screenshot();
+  await page.getByRole("button", { name: "▱ 지우개" }).click();
+  await page.mouse.move(box.x + 145, box.y + 120);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 145, box.y + 150);
+  await page.mouse.up();
+  const erased = await canvas.screenshot();
+  expect(erased.equals(before)).toBe(false);
+  await page.getByRole("button", { name: "↶ 되돌리기" }).click();
+  await page.getByRole("button", { name: "⊙ 연결점 옮기기" }).click();
+  await canvas.click({ position: { x: 100, y: 100 } });
+  await expect(
+    page.getByRole("button", { name: "⊙ 연결점 이동 중" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({ path: "docs/drawing-mobile.png", fullPage: true });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole("button", { name: "전체 삭제", exact: true }).click();
+  await expect(page.getByLabel("그림 분석")).toContainText("아직 빈 종이");
+  await expect(page.getByRole("button", { name: /^다음/ })).toBeDisabled();
+});
+
+test('mobile touch strokes reach the drawing desk without scrolling the page',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});const page=await context.newPage();const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:5173');const box=(await page.getByLabel('머리 그리기 캔버스').boundingBox())!,session=await context.newCDPSession(page);
+ await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+45,y:box.y+100}]});for(let i=1;i<20;i++)await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:box.x+45+i*10,y:box.y+100+Math.sin(i*.4)*30}]});await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await expect(page.getByRole('button',{name:/^다음/})).toBeEnabled();expect(await page.evaluate(()=>scrollY)).toBe(0);expect(errors).toEqual([]);await context.close();
+});
+
+test('faster default, fast-forward cycling, pause and immediate results work together',async({page})=>{
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.setViewportSize({width:390,height:844});await page.goto('/');await page.getByRole('button',{name:'샘플 경기',exact:true}).click();await page.clock.install();await page.getByRole('button',{name:'경주 시작 →'}).click();await expect(page.getByRole('button',{name:'빨리감기 현재 1.5배'})).toBeVisible();await page.clock.runFor(2000);await expect(page.getByTestId('distance')).toHaveText('0.0/ 100m');await page.clock.runFor(3000);
+ const before=parseFloat((await page.getByTestId('time').textContent())!);await page.getByRole('button',{name:'빨리감기 현재 1.5배'}).click();await page.clock.runFor(1000);const after=parseFloat((await page.getByTestId('time').textContent())!);expect(after-before).toBeGreaterThan(2.7);expect(after-before).toBeLessThan(3.3);
+ await page.getByRole('button',{name:'빨리감기 현재 3배'}).click();await expect(page.getByRole('button',{name:'빨리감기 현재 6배'})).toBeVisible();await page.getByRole('button',{name:'Ⅱ 일시정지'}).click();const paused=await page.getByTestId('time').textContent();await page.clock.runFor(1000);expect(await page.getByTestId('time').textContent()).toBe(paused);await page.getByRole('button',{name:'계속 달리기 →'}).click();await page.screenshot({path:'docs/playback-mobile.png',fullPage:true});await page.getByRole('button',{name:'결과보기 →'}).click();await expect(page.getByRole('heading',{name:'끝까지 달렸어요!'})).toBeVisible();expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('kkumul-race:v1')!).records.length)).toBe(1);expect(errors).toEqual([]);
+});
+test('manual result shortcut reports non-finish honestly without saved personal record',async({page})=>{
+ await page.goto('/');await page.getByRole('button',{name:'샘플 경기',exact:true}).click();await page.getByRole('button',{name:'조작 전환 ↔'}).click();await page.getByRole('button',{name:'경주 시작 →'}).click();await page.getByRole('button',{name:'결과보기 →'}).click();await expect(page.getByRole('heading',{name:'다음엔 결승선까지!'})).toBeVisible();await expect(page.locator('.my-result')).toContainText('미완주');expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('kkumul-race:v1')||'{"records":[]}').records.length)).toBe(0);
+});

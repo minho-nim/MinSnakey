@@ -1,0 +1,212 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { sampleSnake, analyze, drawing } from "../src/model";
+import {
+  DT,
+  createRace,
+  createRacer,
+  stepRace,
+  advance,
+  propel,
+  standings,
+} from "../src/physics";
+import { validSnake } from "../src/storage";
+
+test("all four racers complete 100m with finite interpolated finish times", () => {
+  const race = createRace(sampleSnake(), "auto");
+  for (let i = 0; i < 120 * 95 && !race.done; i++) stepRace(race);
+  assert.equal(race.done, true);
+  assert.equal(race.timedOut, false);
+  for (const r of race.racers) {
+    assert.equal(r.distance, 100);
+    assert.ok(r.finish !== null && r.finish > 10 && r.finish < 90);
+    assert.ok(r.peak <= r.stats.maxSpeed);
+    assert.ok(
+      r.nodes.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)),
+    );
+  }
+  assert.ok(
+    standings(race).every((r, i, a) => !i || r.finish! >= a[i - 1].finish!),
+  );
+});
+test("fixed simulation produces the same results at 30 and 120 fps", () => {
+  const a = createRace(sampleSnake(), "auto"),
+    b = createRace(sampleSnake(), "auto");
+  for (let i = 0; i < 1800; i++) advance(a, 1 / 30);
+  for (let i = 0; i < 7200; i++) advance(b, 1 / 120);
+  a.racers.forEach((r, i) =>
+    assert.ok(Math.abs(r.finish! - b.racers[i].finish!) < DT * 2),
+  );
+});
+test("countdown, pause and restart preserve correct time and position", () => {
+  const a = createRace(sampleSnake(), "auto");
+  propel(a, -1);
+  for (let i = 0; i < 120; i++) stepRace(a);
+  assert.equal(a.time, 0);
+  assert.ok(a.racers.every((r) => r.distance === 0));
+  for (let i = 0; i < 720; i++) stepRace(a);
+  const time = a.time,
+    distance = a.racers[0].distance,
+    nodes = JSON.stringify(a.racers[0].nodes);
+  a.paused = true;
+  advance(a, 0.2);
+  propel(a, 1);
+  assert.equal(a.time, time);
+  assert.equal(a.racers[0].distance, distance);
+  assert.equal(JSON.stringify(a.racers[0].nodes), nodes);
+  const b = createRace(sampleSnake(), "auto");
+  assert.equal(b.time, 0);
+  assert.equal(b.racers[0].speed, 0);
+  assert.equal(b.countdown, 3);
+});
+test("manual rhythm drives shared physics and idle input decelerates", () => {
+  const a = createRace(sampleSnake(), "manual");
+  a.countdown = 0;
+  let side = 1;
+  for (let i = 0; i < 120 * 12; i++) {
+    if (i % 38 === 0) {
+      side = -side;
+      propel(a, side);
+    }
+    stepRace(a);
+  }
+  const r = a.racers[0],
+    speed = r.speed;
+  assert.ok(speed > 1);
+  assert.ok(r.distance > 10);
+  for (let i = 0; i < 120 * 5; i++) stepRace(a);
+  assert.ok(r.speed < speed * 0.7);
+});
+test("manual repeated same side and rapid spam cannot create unbounded drive", () => {
+  const a = createRace(sampleSnake(), "manual");
+  a.countdown = 0;
+  propel(a, 1);
+  const impulse = a.racers[0].impulse;
+  propel(a, 1);
+  propel(a, -1);
+  assert.equal(a.racers[0].impulse, impulse);
+  for (let i = 0; i < 3600; i++) {
+    propel(a, i % 2 ? 1 : -1);
+    stepRace(a);
+    assert.ok(a.racers[0].speed <= a.racers[0].stats.maxSpeed);
+  }
+});
+test("manual non-finisher ends at time limit and is ranked behind finishers", () => {
+  const a = createRace(sampleSnake(), "manual");
+  for (let i = 0; i < 120 * 95 && !a.done; i++) stepRace(a);
+  assert.equal(a.timedOut, true);
+  assert.equal(a.racers[0].finish, null);
+  assert.equal(standings(a).at(-1), a.racers[0]);
+});
+test("backbone links stay inextensible, body types differ, extreme inputs stay finite", () => {
+  const a = createRace(sampleSnake(), "auto");
+  a.countdown = 0;
+  for (let i = 0; i < 600; i++) stepRace(a);
+  for (const r of a.racers)
+    for (let i = 1; i < r.nodes.length; i++)
+      assert.ok(
+        Math.abs(
+          Math.hypot(
+            r.nodes[i].x - r.nodes[i - 1].x,
+            r.nodes[i].y - r.nodes[i - 1].y,
+          ) - r.links[i - 1],
+        ) < 1e-8,
+      );
+  assert.notEqual(analyze(sampleSnake(0)).mass, analyze(sampleSnake(2)).mass);
+  const s = sampleSnake();
+  s.parts.body = drawing(
+    [{ points: [{ x: 10, y: 10 }], color: "#3d7755", width: 24 }],
+    "body",
+  );
+  const r = createRacer(s);
+  assert.ok(Object.values(r.stats).every(Number.isFinite));
+});
+test("saved drawing validation rejects corrupt and excessive data", () => {
+  assert.equal(validSnake(sampleSnake()), true);
+  assert.equal(validSnake({}), false);
+  const s = sampleSnake();
+  s.parts.body.strokes[0].points[0].x = NaN;
+  assert.equal(validSnake(s), false);
+});
+
+import { bodyRig, skinPoint, eraseStrokes } from "../src/geometry";
+test("source-path rig preserves every drawn point at rest, including loops", () => {
+  const s = sampleSnake();
+  const points = Array.from({ length: 101 }, (_, i) => ({
+    x: 240 + Math.cos((i / 100) * Math.PI * 3) * 100,
+    y: 170 + Math.sin((i / 100) * Math.PI * 3) * 75,
+  }));
+  s.parts.body = drawing([{ points, color: "#365939", width: 12 }], "body");
+  const rig = bodyRig(s.parts.body),
+    origin = rig.source[0];
+  points.forEach((p, i) => {
+    const q = skinPoint(rig.bindings[0][i], rig.rest, rig.scale);
+    assert.ok(
+      Math.hypot(
+        q.x - (p.x - origin.x) * rig.scale,
+        q.y - (p.y - origin.y) * rig.scale,
+      ) < 1e-8,
+    );
+  });
+  assert.ok(rig.rest.some((p) => Math.abs(p.y) > 0.3));
+});
+test("drawn ink and pen thickness change mass; source dimensions are retained", () => {
+  const a = sampleSnake(),
+    b = structuredClone(a);
+  b.parts.head.strokes = b.parts.head.strokes.map((s) => ({
+    ...s,
+    width: s.width * 2,
+  }));
+  assert.ok(analyze(b).mass > analyze(a).mass);
+  const rig = bodyRig(a.parts.body);
+  assert.equal(rig.scale, bodyRig(a.parts.body).scale);
+  assert.ok(rig.source.length > 16);
+});
+test("eraser cuts the touched part of a sparse stroke and leaves its ends", () => {
+  const strokes = [
+    {
+      points: [
+        { x: 10, y: 100 },
+        { x: 470, y: 100 },
+      ],
+      color: "#365939",
+      width: 8,
+    },
+  ];
+  const erased = eraseStrokes(strokes, { x: 240, y: 100 }, 18);
+  assert.equal(erased.length, 2);
+  assert.ok(erased[0].points.at(-1)!.x < 220);
+  assert.ok(erased[1].points[0].x > 260);
+  assert.equal(strokes[0].points.length, 2);
+});
+
+test('default part connectors lie on actual source ink, including single dots',()=>{
+ for(const kind of ['head','tail'] as const){const points=[{x:20,y:40},{x:90,y:170},{x:160,y:40}];const part=drawing([{points,color:'#365939',width:8}],kind);assert.ok(points.some(p=>p.x===part.anchor.x&&p.y===part.anchor.y));const dot=drawing([{points:[{x:70,y:20}],color:'#365939',width:8}],kind);assert.deepEqual(dot.anchor,{x:70,y:20});}
+});
+
+import {finishRace} from '../src/physics';
+import {trackScale,type RaceCamera} from '../src/render';
+test('track zoom stays constant throughout motion and recalculates only on viewport resize',()=>{
+ const race=createRace(sampleSnake(),'auto'),camera:RaceCamera={x:-2};const initial=trackScale(race,camera,390,350);
+ for(let i=0;i<1200;i++){stepRace(race);assert.equal(trackScale(race,camera,390,350),initial)}
+ const resized=trackScale(race,camera,1080,420);assert.notEqual(resized,initial);
+ for(let i=0;i<120;i++){stepRace(race);assert.equal(trackScale(race,camera,1080,420),resized)}
+ assert.equal(trackScale(race,{x:-2},390,350),initial);
+});
+test('fast playback keeps countdown in real time and preserves exact auto results',()=>{
+ const normal=createRace(sampleSnake(),'auto'),fast=createRace(sampleSnake(),'auto');
+ for(let i=0;i<60;i++){advance(normal,1/60,1);advance(fast,1/60,6)}
+ assert.equal(normal.time,0);assert.equal(fast.time,0);assert.equal(normal.countdown,fast.countdown);
+ for(let i=0;i<3600;i++)advance(normal,1/60,1);
+ for(let i=0;i<900;i++)advance(fast,1/30,6);
+ normal.racers.forEach((r,i)=>assert.equal(fast.racers[i].finish,r.finish));
+});
+test('result shortcut computes remaining race from current state without altering prior finish records',()=>{
+ const direct=createRace(sampleSnake(),'auto'),full=createRace(sampleSnake(),'auto');for(let i=0;i<700;i++){stepRace(direct);stepRace(full)}
+ direct.paused=true;finishRace(direct);while(!full.done)stepRace(full);
+ assert.equal(direct.done,true);direct.racers.forEach((r,i)=>assert.equal(r.finish,full.racers[i].finish));
+ const times=direct.racers.map(r=>r.finish);finishRace(direct);assert.deepEqual(direct.racers.map(r=>r.finish),times);
+});
+test('result shortcut never invents manual inputs or converts control mode',()=>{
+ const manual=createRace(sampleSnake(),'manual');finishRace(manual);assert.equal(manual.done,true);assert.equal(manual.mode,'manual');assert.equal(manual.racers[0].finish,null);assert.equal(manual.racers[0].distance,0);assert.equal(manual.timedOut,true);assert.ok(manual.racers.slice(1).every(r=>r.finish!==null));
+});
