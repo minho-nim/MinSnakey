@@ -3421,3 +3421,14 @@ meter::-webkit-meter-optimum-value {
  .result-hero h2 { font-size: 36px; white-space: nowrap; }
  .race-breakdown b { overflow-wrap: normal; word-break: keep-all; }
 }
+/* Keep the drawing screen's brand visible without displacing the canvas. */
+.workshop > .arcade-title {
+  display: block;
+  order: -5;
+  padding: 8px 0 12px;
+  margin: 0;
+}
+.workshop > .arcade-title .mini-title { display: none; }
+.workshop > .arcade-title h1 { margin: 0; font-size: clamp(26px, 7vw, 36px); }
+.workshop > .arcade-title .brand-lockup-large { gap: 10px; }
+.workshop > .arcade-title .brand-lockup-large .brand-logo { width: 44px; height: 44px; }
