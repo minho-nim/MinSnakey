@@ -1,4 +1,4 @@
-export const SHARE_CARD_VERSION = "minsnakey-1";
+export const SHARE_CARD_VERSION = "minsnakey-logo-1";
 export const SHARE_ORIGIN = "https://kkumul-race-minho.lmh000603.chatgpt.site";
 export const TAUNTS = [
   { title: "덤벼봐!", subtitle: "내 기록 깰 수 있겠어?" },

@@ -3,6 +3,8 @@ import { TAUNTS, SHARE_ORIGIN, SHARE_CARD_VERSION } from "../src/share-copy";
 import { courseInfo } from "../src/courses";
 import { renderCard } from "./card";
 declare const __GAME_HTML__: string;
+declare const __ICON_ASSETS__: Record<string, string>;
+declare const __MANIFEST_JSON__: string;
 const GAME = "https://minho-nim.github.io/snake-race/";
 const escape = (text: string) =>
   text
@@ -20,6 +22,29 @@ export default {
     const url = new URL(request.url);
     if (!["GET", "HEAD"].includes(request.method))
       return new Response("Method not allowed", { status: 405 });
+    if (url.pathname === "/manifest.webmanifest")
+      return new Response(
+        request.method === "HEAD" ? null : __MANIFEST_JSON__,
+        {
+          headers: {
+            "Content-Type": "application/manifest+json; charset=utf-8",
+          },
+        },
+      );
+    if (typeof __ICON_ASSETS__ !== "undefined" && __ICON_ASSETS__[url.pathname])
+      return new Response(
+        request.method === "HEAD"
+          ? null
+          : Uint8Array.from(atob(__ICON_ASSETS__[url.pathname]), (c) =>
+              c.charCodeAt(0),
+            ),
+        {
+          headers: {
+            "Content-Type": "image/png",
+            "Cache-Control": "public, max-age=86400",
+          },
+        },
+      );
     if (url.pathname === "/robots.txt")
       return new Response("User-agent: *\nAllow: /\n", {
         headers: { "Content-Type": "text/plain" },
