@@ -60,8 +60,10 @@ export type Racer = {
     landings: number;
   };
   waterDrag: number;
+  variationSeed: number;
 };
 export type Race = {
+  seed: number;
   course: CourseId;
   inputs: ReplayInput[];
   challenge: Challenge | null;
@@ -111,6 +113,7 @@ export function createRacer(snake: Snake): Racer {
     pitchVelocity: 0,
     hitParts: [],
     waterDrag: 0,
+    variationSeed: 0,
     telemetry: {
       split20: null,
       waterTime: 0,
@@ -126,6 +129,7 @@ export function createRace(
   mode: Mode,
   course: CourseId = "sprint",
   challenge: Challenge | null = null,
+  seed = 0,
 ): Race {
   const connection = snakeConnections(snake);
   if (!connection.connected) throw new Error(connection.message);
@@ -134,6 +138,7 @@ export function createRace(
       "상대 뱀의 부위가 떨어져 있습니다. 새 도전 링크를 받아주세요.",
     );
   return {
+    seed,
     course,
     inputs: [],
     challenge,
@@ -150,7 +155,7 @@ export function createRace(
             ...matchedOpponents(snake).slice(1).map(createRacer),
           ]
         : matchedOpponents(snake).map(createRacer)),
-    ],
+    ].map((r, i) => ({ ...r, variationSeed: i === 1 && challenge ? (challenge.seed || 0) : seed ? ((seed + i * 2654435761) >>> 0) || 1 : 0 })),
     mode,
     time: 0,
     countdown: 3,
@@ -456,6 +461,12 @@ export function stepRace(race: Race, dt = DT) {
       r.impulse = Math.max(0, r.impulse - (dt * 1.25) / r.inputRate);
       drive = clamp(r.impulse, 0, 1);
     }
+    if (r.variationSeed) {
+      const n = r.variationSeed;
+      const reaction = ((n ^ (n >>> 16)) >>> 0) % 181 / 1000;
+      const phase = (n % 6283) / 1000;
+      drive *= race.time < reaction ? 0 : 0.94 + ((n >>> 8) % 501) / 10000 + 0.01 * Math.sin(race.time * 1.7 + phase);
+    }
     if (race.time < r.stumbleUntil) drive *= 0.15;
     stepRacer(r, dt, drive, race.time, terrainAt(race.course, r.distance));
     if (obstaclesFor(race.course).length > 0 && r.finish === null)
@@ -542,7 +553,7 @@ export function finishRace(race: Race) {
   race.accumulator = 0;
 }
 export function verifyChallengeRecord(challenge: Challenge) {
-  const replay = createRace(challenge.snake, challenge.mode, challenge.course);
+  const replay = createRace(challenge.snake, challenge.mode, challenge.course, null, challenge.seed || 0);
   replay.countdown = 0;
   let inputIndex = 0;
   while (!replay.done) {

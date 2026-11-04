@@ -12,6 +12,7 @@ export type ReplayInput = {
 };
 export type Challenge = {
   v: 1;
+  seed?: number;
   taunt?: number;
   rules: string;
   snake: Snake;
@@ -55,6 +56,7 @@ export function validChallenge(value: unknown): value is Challenge {
     let last = -1;
     return (
       c.v === 1 &&
+      (c.seed === undefined || (Number.isInteger(c.seed) && c.seed >= 0 && c.seed <= 4294967295)) &&
       (c.taunt === undefined ||
         (Number.isInteger(c.taunt) &&
           c.taunt >= 0 &&
@@ -99,6 +101,7 @@ export async function challengeLink(race: Race, base: string, taunt = 0) {
     throw new Error("먼저 완주한 뒤 도전장을 보낼 수 있어요.");
   const challenge: Challenge = {
     v: 1,
+    seed: race.seed,
     taunt,
     rules: RULES_VERSION,
     snake: r.snake,

@@ -576,7 +576,7 @@ export default function App() {
       return;
     }
     setShareURL("");
-    setRace(createRace(snake, mode, course, incoming));
+    setRace(createRace(snake, mode, course, incoming, crypto.getRandomValues(new Uint32Array(1))[0] || 1));
     setPage("race");
     window.scrollTo(0, 0);
   };
@@ -1026,7 +1026,7 @@ export default function App() {
             onDone={onDone}
             onExit={() => prepare()}
             onRestart={() => {
-              setRace(createRace(snake, mode, course, incoming));
+              setRace(createRace(snake, mode, course, incoming, crypto.getRandomValues(new Uint32Array(1))[0] || 1));
             }}
           />
         )}
