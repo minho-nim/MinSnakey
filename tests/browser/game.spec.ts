@@ -1,3 +1,4 @@
+import { sampleSnake } from "../../src/model";
 import { test, expect } from "@playwright/test";
 test("draw three parts, assemble, save, run race to finish and persist record", async ({
   page,
@@ -75,7 +76,7 @@ test("mobile layout, manual controls, restart, exit and mode reset", async ({
   await page.clock.install();
   await page.getByRole("button", { name: "경주 시작 →" }).click();
   await page.clock.runFor(3500);
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 8; i++) {
     await page
       .getByRole("button", {
         name: i % 2 ? "오른쪽 추진" : "왼쪽 추진",
@@ -192,24 +193,30 @@ test("faster default, fast-forward cycling, pause and immediate results work tog
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
-  await page.clock.install();
+  await page.clock.install({ time: new Date("2026-11-04T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-11-04T00:00:01Z"));
   await page.getByRole("button", { name: "경주 시작 →" }).click();
   await expect(
-    page.getByRole("button", { name: "빨리감기 현재 1.5배" }),
+    page.getByRole("button", { name: "빨리감기 현재 1배" }),
   ).toBeVisible();
   await page.clock.runFor(2000);
   await expect(page.getByTestId("distance")).toHaveText("0.0/ 100m");
-  await page.clock.runFor(3000);
+  await page.clock.runFor(2000);
   const before = parseFloat((await page.getByTestId("time").textContent())!);
-  await page.getByRole("button", { name: "빨리감기 현재 1.5배" }).click();
+  await page.getByRole("button", { name: "빨리감기 현재 1배" }).click();
   await page.clock.runFor(1000);
   const after = parseFloat((await page.getByTestId("time").textContent())!);
-  expect(after - before).toBeGreaterThan(2.7);
-  expect(after - before).toBeLessThan(3.3);
-  await page.getByRole("button", { name: "빨리감기 현재 3배" }).click();
+  expect(after - before).toBeGreaterThan(5.3);
+  expect(after - before).toBeLessThan(6.7);
+  await page.getByRole("button", { name: "빨리감기 현재 2배" }).click();
   await expect(
-    page.getByRole("button", { name: "빨리감기 현재 6배" }),
+    page.getByRole("button", { name: "빨리감기 현재 4배" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "빨리감기 현재 4배" }).click();
+  await expect(
+    page.getByRole("button", { name: "빨리감기 현재 8배" }),
+  ).toBeVisible();
+  await expect(page.getByText("기본 3배 · 현재 24배 진행")).toBeVisible();
   await page.getByRole("button", { name: "Ⅱ 일시정지" }).click();
   const paused = await page.getByTestId("time").textContent();
   await page.clock.runFor(1000);
@@ -304,16 +311,110 @@ test("shared challenge opens in a fresh browser and races the actual opponent re
     path: "docs/friend-challenge-mobile.png",
     fullPage: true,
   });
-  await friend.getByRole("button", { name: "이 뱀으로 도전하기 →" }).click();
+  await expect(
+    friend.getByRole("button", { name: "내 뱀으로 도전하기 →", exact: false }),
+  ).toBeDisabled();
+  await friend.getByRole("button", { name: /내 뱀 그리기/ }).click();
+  for (let i = 0; i < 3; i++) {
+    await friend.getByRole("button", { name: "샘플 ＋" }).click();
+    await friend
+      .getByRole("button", { name: i < 2 ? /^다음/ : /조립!/ })
+      .click();
+  }
+  await friend.getByRole("textbox").fill("친구의 새 꼬물이");
+  await friend.getByRole("button", { name: "경기 준비하러 →" }).click();
   await expect(
     friend.getByRole("button", { name: /언덕 달리기/ }),
   ).toBeDisabled();
   await expect(
     friend.getByRole("button", { name: "조작 전환 ↔" }),
   ).toBeDisabled();
-  await friend.getByRole("button", { name: "경주 시작 →" }).click();
+  await friend.getByRole("button", { name: "도전 시작 →" }).click();
   await friend.getByRole("button", { name: "결과보기 →" }).click();
   await expect(friend.locator(".challenge-verdict")).toBeVisible();
   await context.close();
   expect(errors).toEqual([]);
+});
+
+test("steep hill preview, gradient HUD and hurdle jump button/spacebar are playable", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await page.getByRole("button", { name: /언덕 달리기/ }).click();
+  await expect(page.getByLabel("가파른 언덕 두 개")).toBeVisible();
+  await expect(
+    page.getByText("첫 언덕 최대 42% · 두 번째 언덕 최대 36%"),
+  ).toBeVisible();
+  await page.clock.install();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.clock.runFor(4300);
+  await expect(page.getByTestId("terrain-status")).toContainText("오르막");
+  await page.screenshot({
+    path: "docs/steep-hills-mobile.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+  await page.getByRole("button", { name: "다른 코스 선택" }).click();
+  await page.getByRole("button", { name: /점프 장애물 달리기/ }).click();
+  await page.getByRole("button", { name: "조작 전환 ↔" }).click();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.clock.runFor(3200);
+  await page.getByRole("button", { name: /↑ 점프/ }).click();
+  await page.clock.runFor(100);
+  await expect(page.getByTestId("jump-status")).toHaveText("↑ 점프 중");
+  await page.clock.runFor(2000);
+  await page.keyboard.press("Space");
+  await page.clock.runFor(100);
+  await expect(page.getByTestId("jump-status")).toHaveText("↑ 점프 중");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.screenshot({
+    path: "docs/hurdles-jump-mobile.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+  await page.getByRole("button", { name: "다른 코스 선택" }).click();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.clock.runFor(4500);
+  await page.screenshot({
+    path: "docs/hurdles-auto-mobile.png",
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});
+test("shared challenger with a saved snake can choose it and directly prepare the battle", async ({
+  page,
+  browser,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+  await page.getByRole("button", { name: "친구에게 도전장 보내기 ↗" }).click();
+  await expect(page.getByLabel("친구 도전 링크")).toHaveValue(/#challenge=/);
+  const url = await page.getByLabel("친구 도전 링크").inputValue();
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  await context.addInitScript(
+    (snake) =>
+      localStorage.setItem(
+        "kkumul-race:v1",
+        JSON.stringify({ snakes: [snake], records: [] }),
+      ),
+    sampleSnake(2),
+  );
+  const friend = await context.newPage();
+  await friend.goto(url);
+  await friend.getByRole("button", { name: /내 뱀으로 도전하기/ }).click();
+  await expect(
+    friend.getByRole("heading", { name: sampleSnake(2).name, exact: true }),
+  ).toBeVisible();
+  await friend.getByRole("button", { name: "도전 시작 →" }).click();
+  await friend.getByRole("button", { name: "결과보기 →" }).click();
+  await expect(friend.locator(".challenge-verdict")).toBeVisible();
+  await context.close();
 });

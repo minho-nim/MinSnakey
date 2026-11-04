@@ -409,3 +409,105 @@ test("reasonable slower alternating manual inputs still overcome ground resistan
   }
   assert.ok(race.racers[0].distance > 0.1);
 });
+
+import { HILLS, OBSTACLES, terrainAt } from "../src/courses";
+import { jump } from "../src/physics";
+test("two hills have continuous endpoints and clearly positive and negative steep grades", () => {
+  assert.equal(HILLS.length, 2);
+  for (const hill of HILLS) {
+    const span = hill.end - hill.start;
+    assert.ok(terrainAt("hills", hill.start + span / 4).grade >= 0.35);
+    assert.ok(terrainAt("hills", hill.start + (span * 3) / 4).grade <= -0.35);
+    assert.ok(Math.abs(terrainAt("hills", hill.end).elevation) < 1e-10);
+  }
+  assert.equal(terrainAt("hills", 45).grade, 0);
+});
+test("automatic racers jump each hurdle and clear all three with their actual body length", () => {
+  const race = createRace(sampleSnake(), "auto", "hurdles");
+  finishRace(race);
+  for (const r of race.racers) {
+    assert.ok(r.finish !== null);
+    assert.equal(r.autoJumps.length, OBSTACLES.length);
+    assert.equal(r.obstacleHits.length, 0);
+  }
+});
+test("manual jump obeys gravity, prevents double jump and freezes with pause", () => {
+  const race = createRace(sampleSnake(), "manual", "hurdles");
+  jump(race);
+  assert.equal(race.inputs.length, 0);
+  race.countdown = 0;
+  jump(race);
+  assert.equal(race.inputs.length, 1);
+  jump(race);
+  assert.equal(race.inputs.length, 1);
+  for (let i = 0; i < 30; i++) stepRace(race);
+  const height = race.racers[0].jumpHeight;
+  assert.ok(height > 0.5);
+  race.paused = true;
+  advance(race, 0.2, 24);
+  assert.equal(race.racers[0].jumpHeight, height);
+  race.paused = false;
+  for (let i = 0; i < 300; i++) stepRace(race);
+  assert.equal(race.racers[0].jumpHeight, 0);
+});
+test("hitting a hurdle slows the racer once; airborne clearance avoids the impact", () => {
+  const ground = createRace(sampleSnake(), "manual", "hurdles"),
+    air = createRace(sampleSnake(), "manual", "hurdles");
+  for (const race of [ground, air]) {
+    race.countdown = 0;
+    const r = race.racers[0];
+    r.distance = OBSTACLES[0].start - r.stats.headReach + 0.05;
+    r.speed = 8;
+    r.drive = 1;
+    r.impulse = 1;
+  }
+  air.racers[0].jumpHeight = 1;
+  stepRace(ground);
+  stepRace(air);
+  assert.equal(ground.racers[0].obstacleHits.length, 1);
+  assert.equal(air.racers[0].obstacleHits.length, 0);
+  assert.ok(ground.racers[0].speed < air.racers[0].speed * 0.6);
+});
+test("24x playback is equivalent to 1x and does not drop simulation time", () => {
+  const normal = createRace(sampleSnake(), "auto", "hurdles"),
+    fast = createRace(sampleSnake(), "auto", "hurdles");
+  for (let i = 0; i < 60 * 35; i++) advance(normal, 1 / 60, 1);
+  for (let i = 0; i < 30 * 6; i++) advance(fast, 1 / 30, 24);
+  normal.racers.forEach((r, i) =>
+    assert.equal(r.finish, fast.racers[i].finish),
+  );
+});
+test("manual jump and accelerated input cadence are recorded and reproduced in shared challenges", async () => {
+  const race = createRace(sampleSnake(), "manual", "hurdles");
+  race.countdown = 0;
+  let side = 1;
+  for (let frame = 0; frame < 60 * 25 && !race.done; frame++) {
+    if (frame % 18 === 0) {
+      side = -side;
+      propel(race, side);
+    }
+    if (frame % 57 === 0) jump(race);
+    advance(race, 1 / 60, 3);
+  }
+  assert.ok(race.racers[0].finish !== null);
+  assert.ok(race.inputs.some((i) => i.kind === "jump"));
+  assert.ok(race.inputs.some((i) => i.rate === 3));
+  const link = await challengeLink(race, "https://example.com/");
+  const invite = (await readChallenge(new URL(link).hash))!;
+  assert.ok(verifyChallengeRecord(invite));
+  const ghost = createRace(sampleSnake(2), "manual", "hurdles", invite);
+  finishRace(ghost);
+  assert.ok(Math.abs(ghost.racers[1].finish! - invite.targetTime) < DT * 2);
+});
+test("old flat challenges remain compatible while changed old hill records require a new link", async () => {
+  const race = createRace(sampleSnake(), "auto");
+  finishRace(race);
+  const invite = (await readChallenge(
+    new URL(await challengeLink(race, "https://example.com")).hash,
+  ))!;
+  assert.equal(validChallenge({ ...invite, rules: "morphology-v1" }), true);
+  assert.equal(
+    validChallenge({ ...invite, rules: "morphology-v1", course: "hills" }),
+    false,
+  );
+});

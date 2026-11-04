@@ -29,7 +29,11 @@ export default function AbilityPanel({
       </div>
       <div className="ability-bars">
         {ABILITIES.map((rule) => (
-          <div key={rule.key} title={rule.hint}>
+          <div
+            key={rule.key}
+            title={rule.hint}
+            className={`ability-item ${rule.key}`}
+          >
             <label>
               {rule.label}
               <b>{abilityScore(stats, rule.key)}</b>

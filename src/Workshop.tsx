@@ -1,3 +1,4 @@
+import { abilityScore } from "./abilities";
 import AbilityPanel from "./AbilityPanel";
 import {
   useEffect,
@@ -323,6 +324,24 @@ export default function Workshop({
         <button className="danger" onClick={() => commit(drawing([], kind))}>
           전체 삭제
         </button>
+      </div>
+      <div className="live-ability-strip" aria-label="실시간 주요 능력치">
+        {(
+          [
+            { key: "acceleration", label: "가속력" },
+            { key: "maxSpeed", label: "최고속도" },
+            { key: "traction", label: "접지력" },
+          ] as const
+        ).map((a) => (
+          <div key={a.key}>
+            <span>{a.label}</span>
+            <strong>
+              {Object.values(draft.parts).some((p) => p.strokes.length)
+                ? abilityScore(stats, a.key)
+                : "—"}
+            </strong>
+          </div>
+        ))}
       </div>
       <div className="creation-stage">
         <div className="paper-heading">
