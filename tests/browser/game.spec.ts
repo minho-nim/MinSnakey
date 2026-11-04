@@ -554,3 +554,84 @@ test("disconnected body is translucent, blocks assembly and saved race start, an
   await page.getByRole("button", { name: "경기 준비하러 →" }).click();
   await expect(page.getByRole("button", { name: "경주 시작 →" })).toBeEnabled();
 });
+
+test("open head eye dots stay opaque and allow assembly while a far detached mark is still blocked", async ({
+  page,
+}) => {
+  const snake = sampleSnake();
+  snake.parts.head = {
+    ...snake.parts.head,
+    strokes: [
+      {
+        points: [
+          { x: 40, y: 140 },
+          { x: 45, y: 90 },
+          { x: 155, y: 90 },
+          { x: 175, y: 140 },
+        ],
+        width: 6,
+        color: "#365939",
+      },
+      ...[85, 130].map((x) => ({
+        points: [{ x, y: 110 }],
+        width: 8,
+        color: "#263b30",
+      })),
+    ],
+    anchor: { x: 40, y: 140 },
+  };
+  await page.addInitScript(
+    (s) =>
+      localStorage.setItem(
+        "kkumul-race:v1",
+        JSON.stringify({ snakes: [s], records: [] }),
+      ),
+    snake,
+  );
+  await page.goto("/");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(
+    page.getByText("눈 장식으로 인식한 선은 연결하지 않아도 돼요.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const canvas = page.getByLabel("머리 그리기 캔버스");
+  expect(
+    await canvas.evaluate(
+      (c: HTMLCanvasElement) =>
+        c
+          .getContext("2d")!
+          .getImageData(
+            Math.floor((85 * c.width) / 480),
+            Math.floor((110 * c.height) / 420),
+            1,
+            1,
+          ).data[3],
+    ),
+  ).toBeGreaterThan(240);
+  const box = (await canvas.boundingBox())!;
+  await canvas.click({
+    position: { x: (430 / 480) * box.width, y: (350 / 420) * box.height },
+  });
+  await expect(page.getByRole("alert")).toContainText(
+    "머리 부위가 떨어져 있습니다",
+  );
+  await page
+    .getByRole("navigation", { name: "그리기 단계" })
+    .getByRole("button", { name: /꼬리/ })
+    .click();
+  await expect(page.getByRole("button", { name: /조립!/ })).toBeDisabled();
+  await page
+    .getByRole("navigation", { name: "그리기 단계" })
+    .getByRole("button", { name: /머리/ })
+    .click();
+  await page.getByRole("button", { name: "↶ 되돌리기" }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page
+    .getByRole("navigation", { name: "그리기 단계" })
+    .getByRole("button", { name: /꼬리/ })
+    .click();
+  await page.getByRole("button", { name: /조립!/ }).click();
+  await page.getByRole("button", { name: "경기 준비하러 →" }).click();
+  await expect(page.getByRole("button", { name: "경주 시작 →" })).toBeEnabled();
+});

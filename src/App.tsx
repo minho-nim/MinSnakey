@@ -621,7 +621,7 @@ export default function App() {
           }}
         >
           <span className="brand-mark">〰</span>꼬물 레이스
-          <span className="version">v0.7.1</span>
+          <span className="version">v0.7.2</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">

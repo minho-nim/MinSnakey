@@ -85,7 +85,7 @@ function Pad({
             : {}),
         }
       : raw;
-    const connection = drawingConnection(d);
+    const connection = drawingConnection(d, kind);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     for (let strokeIndex = 0; strokeIndex < d.strokes.length; strokeIndex++) {
@@ -322,7 +322,7 @@ export default function Workshop({
             {names[p]}
             {values[p].strokes.length > 0 && (
               <small>
-                {drawingConnection(values[p]).connected ? "✓" : "!"}
+                {drawingConnection(values[p], p).connected ? "✓" : "!"}
               </small>
             )}
           </button>
@@ -469,6 +469,11 @@ export default function Workshop({
               : "원하는 모양 그대로, 자유롭게!"}
         </span>
       </div>
+      {kind === "head" && connections.reports.head.eyes.length > 0 && (
+        <p className="class-note" role="status">
+          눈 장식으로 인식한 선은 연결하지 않아도 돼요.
+        </p>
+      )}
       {!connections.reports[kind].missing &&
         !connections.reports[kind].connected && (
           <p className="connection-warning" role="alert">
