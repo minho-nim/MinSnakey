@@ -1,3 +1,4 @@
+import { partResistance } from "./part-physics";
 import { snakeConnections } from "./connectivity";
 import type { Challenge, ReplayInput } from "./challenge";
 import { terrainAt, obstaclesFor, type CourseId } from "./courses";
@@ -19,6 +20,7 @@ import {
   type Stats,
   type Mode,
   type Point,
+  type PartName,
 } from "./model";
 export const DT = 1 / 120;
 export const DEFAULT_PLAYBACK_RATE = 3;
@@ -46,6 +48,18 @@ export type Racer = {
   obstacleHits: number[];
   autoJumps: number[];
   stumbleUntil: number;
+  pitch: number;
+  pitchVelocity: number;
+  hitParts: { part: PartName; obstacle: number; time: number }[];
+  telemetry: {
+    split20: number | null;
+    waterTime: number;
+    waterDistance: number;
+    waterEntrySpeed: number | null;
+    waterMinSpeed: number | null;
+    landings: number;
+  };
+  waterDrag: number;
 };
 export type Race = {
   course: CourseId;
@@ -93,6 +107,18 @@ export function createRacer(snake: Snake): Racer {
     obstacleHits: [],
     autoJumps: [],
     stumbleUntil: 0,
+    pitch: 0,
+    pitchVelocity: 0,
+    hitParts: [],
+    waterDrag: 0,
+    telemetry: {
+      split20: null,
+      waterTime: 0,
+      waterDistance: 0,
+      waterEntrySpeed: null,
+      waterMinSpeed: null,
+      landings: 0,
+    },
   };
 }
 export function createRace(
@@ -169,6 +195,15 @@ function launchJump(r: Racer, time: number) {
     Math.min(80, Math.max(35, r.stats.drivePower * 1.75)) * r.energy;
   r.jumpVelocity = Math.min(9, Math.sqrt((2 * energy) / r.stats.mass));
   r.jumpHeight = 0.001;
+  r.pitchVelocity += clamp(
+    (((r.stats.centerOfMass - r.stats.parts.body.centerX) *
+      r.stats.mass *
+      r.jumpVelocity) /
+      (r.stats.inertia + 0.1)) *
+      0.12,
+    -0.8,
+    0.8,
+  );
   r.lastJump = time;
   r.energy = clamp(r.energy - energy / r.stats.energyCapacity, 0.55, 1);
   return true;
@@ -199,7 +234,35 @@ function autoJump(r: Racer, time: number, course: CourseId) {
   if (r.jumpHeight > 0 || r.finish !== null) return;
   obstaclesFor(course).forEach((obstacle, i) => {
     const gap = obstacle.start - r.distance - r.stats.headReach;
-    if (gap <= r.speed * 0.25 + 0.3 && gap > -0.5 && !r.autoJumps.includes(i)) {
+    const launchSpeed = Math.min(
+      9,
+      Math.sqrt(
+        (2 * Math.min(80, Math.max(35, r.stats.drivePower * 1.75)) * r.energy) /
+          r.stats.mass,
+      ),
+    );
+    const discriminant = Math.max(
+      0,
+      launchSpeed ** 2 - 2 * GRAVITY * (obstacle.height + 0.08),
+    );
+    const rise = (launchSpeed - Math.sqrt(discriminant)) / GRAVITY,
+      fall = (launchSpeed + Math.sqrt(discriminant)) / GRAVITY;
+    const bodySpan =
+      r.stats.headReach -
+      r.nodes.reduce((min, p) => Math.min(min, p.x), 0) +
+      r.stats.tailReach +
+      obstacle.end -
+      obstacle.start;
+    const drag =
+      (0.5 * AIR_DENSITY * r.stats.dragCoefficient * r.stats.frontalArea) /
+      r.stats.mass;
+    const travel = (t: number) =>
+      drag > 1e-8 ? Math.log1p(drag * r.speed * t) / drag : r.speed * t;
+    const trigger = Math.max(
+      travel(rise) + 0.06,
+      (travel(rise) + travel(fall) - bodySpan) / 2,
+    );
+    if (gap <= trigger && gap > -0.5 && !r.autoJumps.includes(i)) {
       if (launchJump(r, time)) r.autoJumps.push(i);
     }
   });
@@ -219,6 +282,18 @@ export function stepRacer(
     r.jumpVelocity -= GRAVITY * dt;
     if (r.jumpHeight <= 0) {
       r.jumpHeight = 0;
+      r.telemetry.landings++;
+      r.speed *=
+        1 -
+        Math.min(
+          0.15,
+          Math.abs(r.pitch) * (0.32 - 0.18 * r.stats.parts.tail.balance),
+        );
+      r.pitchVelocity += clamp(
+        r.pitch * Math.abs(r.jumpVelocity) * 0.08,
+        -0.8,
+        0.8,
+      );
       r.jumpVelocity = 0;
     }
   }
@@ -268,19 +343,23 @@ export function stepRacer(
     0.55,
     1,
   );
-  const coupling = clamp(contactWork * 5, 0, 1),
-    wet = terrain.waterDepth > 0;
-  const submergedFraction = wet
-    ? clamp(terrain.waterDepth / s.thickness, 0, 1)
-    : 0;
-  const buoyancy =
-    WATER_DENSITY * GRAVITY * (s.mass / 1050) * submergedFraction;
+  const coupling = clamp(contactWork * 5, 0, 1);
+  const fluid = partResistance(
+      s.parts,
+      r.speed,
+      terrain.waterDepth,
+      r.jumpHeight,
+      r.pitch,
+      s.centerOfMass,
+    ),
+    wet = fluid.wet;
   const normalForce =
     r.jumpHeight > 0
       ? 0
       : Math.max(
           0,
-          (s.mass * GRAVITY) / Math.sqrt(1 + terrain.grade ** 2) - buoyancy,
+          (s.mass * GRAVITY) / Math.sqrt(1 + terrain.grade ** 2) -
+            fluid.buoyancy,
         );
   const tractionLimit = s.grip * (wet ? 0.65 : 1) * normalForce;
   const motorForce =
@@ -292,16 +371,31 @@ export function stepRacer(
     r.energy *
     coupling *
     r.drive;
-  const thrust = Math.min(motorForce, tractionLimit);
-  const air = fluidDrag(AIR_DENSITY, s.dragCoefficient, s.frontalArea, r.speed);
-  const water = wet
-    ? fluidDrag(
-        WATER_DENSITY,
-        s.dragCoefficient * 1.15,
-        submergedCircleArea(s.thickness, terrain.waterDepth),
-        r.speed,
-      )
-    : 0;
+  const share = clamp(fluid.immersed.tail * 0.6, 0, 0.5);
+  const tailSweep = Math.abs(r.nodes.at(-1)!.y - r.previous.at(-1)!.y) / dt;
+  const tailReaction =
+    fluidDrag(WATER_DENSITY, 0.6, s.parts.tail.finArea, tailSweep) * 0.6;
+  // Fin work shares the same motor output, never creates extra power.
+  const thrust =
+    Math.min(motorForce * (1 - share), tractionLimit) +
+    Math.min(motorForce * share, tailReaction);
+  const air = fluid.air,
+    water = fluid.water.head + fluid.water.body + fluid.water.tail;
+  r.waterDrag = water;
+  if (wet) {
+    r.telemetry.waterTime += dt;
+    r.telemetry.waterEntrySpeed ??= r.speed;
+    r.telemetry.waterMinSpeed = Math.min(
+      r.telemetry.waterMinSpeed ?? r.speed,
+      r.speed,
+    );
+  }
+  const grounded = r.jumpHeight === 0,
+    k = grounded ? 10 + 12 * s.parts.tail.balance : 0,
+    damping = grounded ? 5 + 5 * s.parts.tail.balance : 0.35;
+  r.pitchVelocity += (-k * r.pitch - damping * r.pitchVelocity) * dt;
+  r.pitchVelocity = clamp(r.pitchVelocity, -2, 2);
+  r.pitch = clamp(r.pitch + r.pitchVelocity * dt, -0.35, 0.35);
   const ground = s.rollingCoefficient * normalForce;
   const resistance = air + water + ground + slopeForce(s.mass, terrain.grade);
   const limit =
@@ -309,6 +403,12 @@ export function stepRacer(
   r.speed = clamp(r.speed + (dt * (thrust - resistance)) / s.mass, 0, limit);
   const before = r.distance;
   r.distance += r.speed * dt;
+  if (wet) r.telemetry.waterDistance += r.distance - before;
+  if (r.telemetry.split20 === null && before < 20 && r.distance >= 20)
+    r.telemetry.split20 =
+      time -
+      dt +
+      (dt * (20 - before)) / Math.max(0.000001, r.distance - before);
   r.peak = Math.max(r.peak, r.speed);
   if (r.distance >= 100) {
     r.finish =
@@ -360,21 +460,54 @@ export function stepRace(race: Race, dt = DT) {
     stepRacer(r, dt, drive, race.time, terrainAt(race.course, r.distance));
     if (obstaclesFor(race.course).length > 0 && r.finish === null)
       obstaclesFor(race.course).forEach((obstacle, index) => {
-        const front = r.distance + r.stats.headReach,
-          back =
-            r.distance +
-            r.nodes.reduce((min, node) => Math.min(min, node.x), 0) -
-            r.stats.tailReach;
-        if (
-          front >= obstacle.start &&
-          back <= obstacle.end &&
-          r.jumpHeight < obstacle.height &&
-          !r.obstacleHits.includes(index)
-        ) {
+        if (r.obstacleHits.includes(index)) return;
+        const s = r.stats,
+          tail = r.nodes.at(-1)!.x;
+        const intervals: Record<PartName, [number, number]> = {
+          head: [r.nodes[0].x, r.nodes[0].x + s.headReach],
+          body: [
+            r.nodes.reduce((min, p) => Math.min(min, p.x), 0),
+            r.nodes.reduce((max, p) => Math.max(max, p.x), 0),
+          ],
+          tail: [tail - s.tailReach, tail],
+        };
+        const part = (["head", "body", "tail"] as const).find((kind) => {
+          const span = intervals[kind],
+            height =
+              r.jumpHeight -
+              Math.sin(r.pitch) * (s.parts[kind].centerX - s.centerOfMass);
+          return (
+            r.distance + span[1] >= obstacle.start &&
+            r.distance + span[0] <= obstacle.end &&
+            height < obstacle.height
+          );
+        });
+        if (part) {
+          const oldSpeed = r.speed;
+          const retained =
+            part === "head"
+              ? 0.48 - (0.12 * s.parts.head.mass) / s.mass
+              : part === "body"
+                ? 0.52
+                : 0.72 - (0.12 * s.parts.tail.mass) / s.mass;
+          r.speed *= retained;
           r.obstacleHits.push(index);
-          r.speed *= 0.45;
-          r.stumbleUntil = race.time + 0.7;
-          r.energy = clamp(r.energy - 0.035, 0.55, 1);
+          r.hitParts.push({ part, obstacle: index, time: race.time });
+          r.pitchVelocity += clamp(
+            (((oldSpeed - r.speed) *
+              s.mass *
+              (s.parts[part].centerX - s.centerOfMass)) /
+              s.inertia) *
+              0.12,
+            -1.6,
+            1.6,
+          );
+          r.stumbleUntil = race.time + (part === "tail" ? 0.4 : 0.7);
+          r.energy = clamp(
+            r.energy - (part === "tail" ? 0.02 : 0.035),
+            0.55,
+            1,
+          );
         }
       });
   });

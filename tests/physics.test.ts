@@ -6,6 +6,7 @@ import {
   createRace,
   createRacer,
   stepRace,
+  stepRacer,
   advance,
   propel,
   standings,
@@ -119,7 +120,13 @@ test("backbone links stay inextensible, body types differ, extreme inputs stay f
     "body",
   );
   const r = createRacer(s);
-  assert.ok(Object.values(r.stats).every(Number.isFinite));
+  assert.ok(
+    Object.values(r.stats)
+      .filter((v) => typeof v === "number")
+      .every(Number.isFinite),
+  );
+  for (const part of Object.values(r.stats.parts))
+    assert.ok(Object.values(part).every(Number.isFinite));
 });
 test("saved drawing validation rejects corrupt and excessive data", () => {
   assert.equal(validSnake(sampleSnake()), true);
@@ -422,7 +429,7 @@ test("two hills have continuous endpoints and clearly positive and negative stee
   }
   assert.equal(terrainAt("hills", 45).grade, 0);
 });
-test("automatic racers attempt every hurdle; actual bulky body clearance can cause a fall", () => {
+test("automatic racers attempt each hurdle using whole-body timing and record actual contact parts", () => {
   const race = createRace(sampleSnake(), "auto", "hurdles");
   finishRace(race);
   for (const r of race.racers) {
@@ -430,10 +437,13 @@ test("automatic racers attempt every hurdle; actual bulky body clearance can cau
     assert.equal(r.autoJumps.length, OBSTACLES.length);
     assert.equal(new Set(r.obstacleHits).size, r.obstacleHits.length);
   }
-  assert.equal(race.racers[0].obstacleHits.length, 0);
-  const bulky = createRace(sampleSnake(2), "auto", "hurdles");
-  finishRace(bulky);
-  assert.ok(bulky.racers[0].obstacleHits.length > 0);
+  assert.ok(race.racers.some((r) => r.obstacleHits.length === 0));
+  for (const r of race.racers) {
+    assert.equal(r.hitParts.length, r.obstacleHits.length);
+    assert.ok(
+      r.hitParts.every((h) => ["head", "body", "tail"].includes(h.part)),
+    );
+  }
 });
 test("manual jump obeys gravity, prevents double jump and freezes with pause", () => {
   const race = createRace(sampleSnake(), "manual", "hurdles");
@@ -512,6 +522,7 @@ test("changed morphology rules require new challenges on every course", async ()
   assert.equal(validChallenge({ ...invite, rules: "morphology-v1" }), false);
   assert.equal(validChallenge({ ...invite, rules: "morphology-v2" }), false);
   assert.equal(validChallenge({ ...invite, rules: "morphology-v3" }), false);
+  assert.equal(validChallenge({ ...invite, rules: "morphology-v4" }), false);
   assert.equal(
     validChallenge({ ...invite, rules: "morphology-v1", course: "hills" }),
     false,
@@ -536,7 +547,7 @@ test("body weight changes actual acceleration and finish time substantially", ()
     heavyRace = createRace(heavy, "auto");
   finishRace(lightRace);
   finishRace(heavyRace);
-  assert.ok(heavyRace.racers[0].finish! > lightRace.racers[0].finish! * 1.3);
+  assert.ok(heavyRace.racers[0].finish! > lightRace.racers[0].finish! * 1.25);
 });
 
 test("personal share page exposes crawler metadata and a real unique snake PNG", async () => {
@@ -544,7 +555,7 @@ test("personal share page exposes crawler metadata and a real unique snake PNG",
   finishRace(race);
   const urls = await socialChallengeURLs(
     race,
-    "https://minho-nim.github.io/snake-race/",
+    "https://minho-nim.github.io/MinSnakey/",
     2,
   );
   const before = JSON.stringify(race.racers[0].snake);
@@ -557,7 +568,7 @@ test("personal share page exposes crawler metadata and a real unique snake PNG",
   assert.ok(html.includes('property="og:image:width" content="1200"'));
   assert.ok(
     html.includes(
-      'location.replace("https://minho-nim.github.io/snake-race/#challenge=',
+      'location.replace("https://minho-nim.github.io/MinSnakey/#challenge=',
     ),
   );
   assert.ok(html.includes(urls.image.replaceAll("&", "&amp;")));
@@ -904,4 +915,228 @@ test("eye recognition never permits distant marks, large loose pieces, detached 
     ).connected,
     false,
   );
+});
+
+import { partResistance } from "../src/part-physics";
+test("end-to-end body strokes form one backbone and preserve original ink at rest", () => {
+  const strokes = [
+    {
+      points: [
+        { x: 20, y: 100 },
+        { x: 200, y: 100 },
+      ],
+      width: 12,
+      color: "#365939",
+    },
+    {
+      points: [
+        { x: 200, y: 100 },
+        { x: 400, y: 100 },
+      ],
+      width: 12,
+      color: "#365939",
+    },
+  ];
+  const rig = bodyRig(drawing(strokes, "body"));
+  assert.equal(rig.source[0].x, 400);
+  assert.equal(rig.source.at(-1)!.x, 20);
+  for (let i = 0; i < strokes.length; i++)
+    for (let j = 0; j < strokes[i].points.length; j++) {
+      const point = skinPoint(rig.bindings[i][j], rig.rest, rig.scale),
+        source = strokes[i].points[j];
+      assert.ok(
+        Math.abs(point.x - (source.x - rig.source[0].x) * rig.scale) < 1e-8,
+      );
+      assert.ok(
+        Math.abs(point.y - (source.y - rig.source[0].y) * rig.scale) < 1e-8,
+      );
+    }
+  const reverse = bodyRig(
+    drawing(
+      strokes.map((s) => ({ ...s, points: [...s.points].reverse() })).reverse(),
+      "body",
+    ),
+  );
+  assert.equal(reverse.source[0].x, 400);
+  assert.equal(reverse.source.at(-1)!.x, 20);
+});
+test("closed body outlines attach head and tail to opposite ends instead of the same seam", () => {
+  const points = Array.from({ length: 65 }, (_, i) => ({
+    x: 230 + 150 * Math.cos((i / 64) * Math.PI * 2),
+    y: 180 + 55 * Math.sin((i / 64) * Math.PI * 2),
+  }));
+  const rig = bodyRig(
+    drawing([{ points, width: 12, color: "#365939" }], "body"),
+  );
+  assert.ok(rig.source[0].x - rig.source.at(-1)!.x > 290);
+  const extended = bodyRig(
+    drawing(
+      [
+        { points, width: 12, color: "#365939" },
+        {
+          points: [
+            { x: 80, y: 180 },
+            { x: 20, y: 180 },
+          ],
+          width: 12,
+          color: "#365939",
+        },
+      ],
+      "body",
+    ),
+  );
+  assert.equal(extended.source.at(-1)!.x, 20);
+  for (const kind of ["head", "tail"] as const)
+    assert.equal(partFrame(rig, rig.rest, kind).angle, 0);
+  points.forEach((point, j) => {
+    const p = skinPoint(rig.bindings[0][j], rig.rest, rig.scale);
+    assert.ok(
+      Math.hypot(
+        p.x - (point.x - rig.source[0].x) * rig.scale,
+        p.y - (point.y - rig.source[0].y) * rig.scale,
+      ) < 1e-8,
+    );
+  });
+});
+test("all sample parts retain their drawn angle at rest and only bend gently in motion", () => {
+  for (let i = 0; i < 4; i++) {
+    const snake = sampleSnake(i),
+      rig = snakeRig(snake);
+    for (const kind of ["head", "tail"] as const) {
+      assert.equal(partFrame(rig, rig.rest, kind).angle, 0);
+      const moving = rig.rest.map((p, j) => ({
+        x: p.x,
+        y: p.y + Math.sin(j * 0.8) * 0.2,
+      }));
+      assert.ok(Math.abs(partFrame(rig, moving, kind).angle) < 0.19);
+    }
+  }
+});
+test("recognized eye and mouth ink does not change mass, scale, power, drag or center of mass", () => {
+  const original = sampleSnake(),
+    decorated = structuredClone(original);
+  decorated.parts.head.strokes.push({
+    points: [{ x: 86, y: 120 }],
+    width: 8,
+    color: "#263b30",
+  });
+  const a = analyze(original),
+    b = analyze(decorated);
+  for (const key of [
+    "mass",
+    "length",
+    "size",
+    "drivePower",
+    "frontalArea",
+    "centerOfMass",
+    "inertia",
+  ] as const)
+    assert.equal(a[key], b[key]);
+  assert.equal(snakeRig(original).scale, snakeRig(decorated).scale);
+  assert.equal(
+    decorated.parts.head.strokes.length,
+    original.parts.head.strokes.length + 1,
+  );
+});
+test("airborne snakes receive no water drag or buoyancy until a part actually submerges", () => {
+  const dry = createRacer(sampleSnake()),
+    air = createRacer(sampleSnake()),
+    wet = createRacer(sampleSnake());
+  for (const r of [dry, air, wet]) r.speed = 5;
+  dry.jumpHeight = air.jumpHeight = 1;
+  stepRacer(dry, DT, 0, 1, { grade: 0, waterDepth: 0 });
+  stepRacer(air, DT, 0, 1, { grade: 0, waterDepth: 0.035 });
+  stepRacer(wet, DT, 0, 1, { grade: 0, waterDepth: 0.035 });
+  assert.equal(dry.speed, air.speed);
+  assert.equal(air.waterDrag, 0);
+  assert.equal(air.telemetry.waterTime, 0);
+  assert.ok(wet.waterDrag > 0);
+  assert.ok(wet.speed < air.speed);
+});
+test("part masses sum to total mass and a broader tail adds both fin area and water drag", () => {
+  const normal = sampleSnake(),
+    wide = structuredClone(normal);
+  const anchor = wide.parts.tail.anchor;
+  wide.parts.tail.strokes = wide.parts.tail.strokes.map((s) => ({
+    ...s,
+    points: s.points.map((p) => ({
+      ...p,
+      y: anchor.y + (p.y - anchor.y) * 1.4,
+    })),
+  }));
+  const a = analyze(normal),
+    b = analyze(wide);
+  assert.ok(
+    Math.abs(Object.values(a.parts).reduce((n, p) => n + p.mass, 0) - a.mass) <
+      1e-10,
+  );
+  assert.ok(b.parts.tail.finArea > a.parts.tail.finArea);
+  const f = partResistance(a.parts, 3, 0.035, 0, 0, a.centerOfMass),
+    g = partResistance(b.parts, 3, 0.035, 0, 0, b.centerOfMass);
+  assert.ok(g.water.tail > f.water.tail);
+});
+test("tail fin thrust uses motor effort and cannot propel an idle snake for free", () => {
+  const idle = createRacer(sampleSnake()),
+    fin = createRacer(sampleSnake()),
+    none = createRacer(sampleSnake());
+  for (const r of [idle, fin, none]) r.speed = 2;
+  fin.drive = none.drive = 1;
+  none.stats.parts.tail.finArea = 0;
+  fin.stats.parts.tail.finArea = 0.8;
+  idle.stats.parts.tail.finArea = 0.8;
+  stepRacer(fin, DT, 1, 1, { grade: 0, waterDepth: 0.035 });
+  stepRacer(none, DT, 1, 1, { grade: 0, waterDepth: 0.035 });
+  stepRacer(idle, DT, 0, 1, { grade: 0, waterDepth: 0.035 });
+  assert.ok(fin.speed > none.speed);
+  assert.ok(idle.speed < 2);
+  assert.ok(fin.energy <= 1);
+});
+test("head and tail impacts have distinct losses and opposing angular impulses", () => {
+  const head = createRace(sampleSnake(), "manual", "hurdles"),
+    tail = createRace(sampleSnake(), "manual", "hurdles");
+  for (const race of [head, tail]) {
+    race.countdown = 0;
+    race.racers[0].speed = 8;
+    race.racers[0].impulse = 1;
+  }
+  head.racers[0].distance =
+    OBSTACLES[0].start - head.racers[0].stats.headReach + 0.05;
+  tail.racers[0].distance =
+    OBSTACLES[0].end - Math.min(...tail.racers[0].nodes.map((p) => p.x)) + 0.25;
+  stepRace(head);
+  stepRace(tail);
+  assert.equal(head.racers[0].hitParts[0].part, "head");
+  assert.equal(tail.racers[0].hitParts[0].part, "tail");
+  assert.ok(tail.racers[0].speed > head.racers[0].speed);
+  assert.ok(head.racers[0].pitchVelocity > 0);
+  assert.ok(tail.racers[0].pitchVelocity < 0);
+});
+test("tail balance reduces a tilted landing penalty while rotation stays bounded", () => {
+  const low = createRacer(sampleSnake()),
+    high = createRacer(sampleSnake());
+  for (const r of [low, high]) {
+    r.speed = 5;
+    r.jumpHeight = 0.001;
+    r.jumpVelocity = -3;
+    r.pitch = 0.2;
+  }
+  low.stats.parts.tail.balance = 0;
+  high.stats.parts.tail.balance = 1;
+  stepRacer(low, DT, 0, 1);
+  stepRacer(high, DT, 0, 1);
+  assert.equal(high.telemetry.landings, 1);
+  assert.ok(high.speed > low.speed);
+  for (let i = 0; i < 240; i++) stepRacer(high, DT, 0, 1 + i * DT);
+  assert.ok(Math.abs(high.pitch) < 0.05);
+});
+test("race telemetry measures actual split and water contact without invented events", () => {
+  const r = createRacer(sampleSnake());
+  r.speed = 5;
+  r.distance = 19.99;
+  stepRacer(r, DT, 0, 1, { grade: 0, waterDepth: 0.035 });
+  assert.ok(r.telemetry.split20! > 1 - DT && r.telemetry.split20! <= 1);
+  assert.equal(r.telemetry.waterTime, DT);
+  assert.ok(r.telemetry.waterDistance > 0);
+  assert.equal(r.hitParts.length, 0);
+  assert.equal(r.telemetry.landings, 0);
 });

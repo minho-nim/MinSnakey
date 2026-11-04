@@ -3317,3 +3317,65 @@ meter::-webkit-meter-optimum-value {
     height: 27px;
   }
 }
+.part-draw-guide {
+  padding: 12px 14px;
+  background: #fff1ce;
+  border: 2px solid #b8bf8a;
+  border-radius: 11px;
+  margin: 0 0 12px;
+  color: #38533c;
+}
+.part-draw-guide > b {
+  font-size: 14px;
+}
+.part-draw-guide > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 7px 0;
+}
+.part-draw-guide span {
+  font-size: 11px;
+  line-height: 1.7;
+  padding: 2px 6px;
+  background: #f7f9e7;
+  border-radius: 5px;
+}
+.part-draw-guide small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #7b7c5d;
+}
+.part-draw-guide p {
+  font-size: 12px;
+  font-weight: 800;
+  margin: 7px 0 0;
+}
+.race-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 18px 0;
+  padding: 12px;
+  background: #edf1db;
+  border: 1px solid #bbc9a0;
+  border-radius: 12px;
+}
+.race-breakdown > div {
+  padding: 8px;
+  background: #fffcef;
+  border-radius: 7px;
+}
+.race-breakdown small {
+  display: block;
+  color: #7b8663;
+  font-size: 10px;
+}
+.race-breakdown b {
+  display: block;
+  margin-top: 5px;
+  color: #365234;
+  font-size: 12px;
+  line-height: 1.6;
+}

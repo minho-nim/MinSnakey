@@ -1,7 +1,7 @@
 # GitHub 업로드와 공개 플레이 주소
 
-GitHub 저장소: https://github.com/minho-nim/snake-race
-공개 게임 주소: https://minho-nim.github.io/snake-race/
+GitHub 저장소: https://github.com/minho-nim/MinSnakey
+공개 게임 주소: https://minho-nim.github.io/MinSnakey/
 
 저장소 생성과 Pages Source=GitHub Actions 설정을 완료했고, GitHub Actions의 Build·Deploy 성공 및 반환된 게임 주소를 확인했다.
 

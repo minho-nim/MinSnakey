@@ -1,3 +1,4 @@
+import { drawingConnection } from "./ink-connection";
 import type { Drawing, Point, Stroke } from "./model";
 const distance = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
 const limit = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
@@ -56,18 +57,116 @@ export function skinPoint(
     y: a.y + dy * binding.t + (dx / d) * binding.normal * scale,
   };
 }
+/** Join end-to-end body strokes before choosing the physical backbone. */
+function closedCenterline(path: Point[], width: number) {
+  const first = path[0],
+    last = path.at(-1)!;
+  if (path.length > 5 && distance(first, last) <= width + 1) {
+    let left = 0,
+      right = 0;
+    path.forEach((p, i) => {
+      if (p.x < path[left].x) left = i;
+      if (p.x > path[right].x) right = i;
+    });
+    if (path[right].x - path[left].x > 12) {
+      const arc = (direction: number) => {
+        const points = [path[right]];
+        let i = right;
+        for (let count = 0; count < path.length; count++) {
+          i = (i + direction + path.length) % path.length;
+          points.push(path[i]);
+          if (i === left) break;
+        }
+        return points;
+      };
+      const sample = (points: Point[], t: number) => {
+        const target = pathLength(points) * t;
+        let length = 0;
+        for (let i = 1; i < points.length; i++) {
+          const span = distance(points[i - 1], points[i]);
+          if (length + span >= target) {
+            const k = span ? (target - length) / span : 0;
+            return {
+              x: points[i - 1].x + (points[i].x - points[i - 1].x) * k,
+              y: points[i - 1].y + (points[i].y - points[i - 1].y) * k,
+            };
+          }
+          length += span;
+        }
+        return points.at(-1)!;
+      };
+      const a = arc(1),
+        b = arc(-1);
+      path = Array.from({ length: 25 }, (_, i) => {
+        const p = sample(a, i / 24),
+          q = sample(b, i / 24);
+        return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+      });
+    }
+  }
+  return path;
+}
+function backbone(strokes: Stroke[]) {
+  let selected = -1,
+    longest = 0;
+  strokes.forEach((stroke, i) => {
+    const length = pathLength(stroke.points);
+    if (length > longest) {
+      selected = i;
+      longest = length;
+    }
+  });
+  if (selected < 0) return [];
+  let path = [...strokes[selected].points];
+  const used = new Set([selected]);
+  for (let phase = 0; phase < 2; phase++) {
+    path = closedCenterline(path, strokes[selected].width);
+    for (let pass = 0; pass < strokes.length; pass++) {
+      let choice: {
+        index: number;
+        front: boolean;
+        points: Point[];
+        length: number;
+      } | null = null;
+      strokes.forEach((stroke, index) => {
+        if (used.has(index) || stroke.points.length < 2) return;
+        const length = pathLength(stroke.points);
+        if (length < 2) return;
+        for (const front of [false, true])
+          for (const reverse of [false, true]) {
+            const points = reverse
+              ? [...stroke.points].reverse()
+              : stroke.points;
+            const join = front ? points.at(-1)! : points[0],
+              end = front ? path[0] : path.at(-1)!;
+            const radius = (stroke.width + strokes[selected].width) / 2 + 0.75;
+            if (
+              distance(join, end) <= radius &&
+              (!choice || length > choice.length)
+            )
+              choice = { index, front, points, length };
+          }
+      });
+      if (!choice) break;
+      const chosen = choice as {
+        index: number;
+        front: boolean;
+        points: Point[];
+        length: number;
+      };
+      used.add(chosen.index);
+      path = chosen.front
+        ? [...chosen.points, ...path]
+        : [...path, ...chosen.points];
+    }
+  }
+  return path;
+}
 export function bodyRig(body: Drawing): BodyRig {
   const found = cache.get(body);
   if (found) return found;
-  let longest: Point[] = [];
-  let total = 0;
-  for (const s of body.strokes) {
-    const length = pathLength(s.points);
-    if (length > total) {
-      total = length;
-      longest = s.points;
-    }
-  }
+  let longest = backbone(body.strokes),
+    total = pathLength(longest);
   // An isolated dot gets a short, safe backbone without replacing its artwork.
   if (total < 1) {
     const p = longest[0] || body.strokes[0]?.points[0] || { x: 240, y: 210 };
@@ -162,20 +261,29 @@ export function eraseStrokes(
   return result.slice(0, 100);
 }
 
-/** Broad neck direction keeps a wavy/vertical endpoint from turning the face
- * downward or backward. The actual attachment point stays on the source ink. */
+/** Apply only motion relative to the drawn rest pose; never rotate a newly
+ * assembled part to match an absolute endpoint angle. */
 export function partFrame(rig: BodyRig, nodes: Point[], kind: "head" | "tail") {
   const head = kind === "head",
     last = nodes.length - 1;
   const node = head ? skinPoint(rig.head, nodes, rig.scale) : nodes[last];
-  const other =
-    nodes[head ? Math.min(last, rig.head.bone + 5) : Math.max(0, last - 5)];
-  const dx = head ? node.x - other.x : other.x - node.x;
-  const dy = head ? node.y - other.y : other.y - node.y;
+  const index = head
+    ? Math.min(last, rig.head.bone + 5)
+    : Math.max(0, last - 5);
+  const restNode = head
+    ? skinPoint(rig.head, rig.rest, rig.scale)
+    : rig.rest[last];
+  const direction = (at: Point, other: Point) =>
+    Math.atan2(
+      head ? at.y - other.y : other.y - at.y,
+      Math.max(0.1, Math.abs(at.x - other.x)),
+    );
+  const delta =
+    direction(node, nodes[index]) - direction(restNode, rig.rest[index]);
   const angle = limit(
-    Math.atan2(dy, Math.max(0.1, Math.abs(dx))),
-    head ? -0.22 : -0.35,
-    head ? 0.22 : 0.35,
+    Math.atan2(Math.sin(delta), Math.cos(delta)),
+    head ? -0.12 : -0.18,
+    head ? 0.12 : 0.18,
   );
   return { node, angle };
 }

@@ -9,6 +9,7 @@ test("draw three parts, assemble, save, run race to finish and persist record", 
   await expect(page.getByLabel("머리 그리기 캔버스")).toBeVisible();
   for (const name of ["머리", "몸통", "꼬리"]) {
     const canvas = page.getByLabel(`${name} 그리기 캔버스`);
+    await canvas.scrollIntoViewIfNeeded();
     const b = (await canvas.boundingBox())!;
     await page.mouse.move(b.x + 45, b.y + b.height / 2);
     await page.mouse.down();
@@ -532,6 +533,7 @@ test("disconnected body is translucent, blocks assembly and saved race start, an
     .getByRole("navigation", { name: "그리기 단계" })
     .getByRole("button", { name: /몸통/ })
     .click();
+  await canvas.scrollIntoViewIfNeeded();
   const box = (await canvas.boundingBox())!;
   await page.mouse.move(
     box.x + (195 / 480) * box.width,
@@ -634,4 +636,82 @@ test("open head eye dots stay opaque and allow assembly while a far detached mar
   await page.getByRole("button", { name: /조립!/ }).click();
   await page.getByRole("button", { name: "경기 준비하러 →" }).click();
   await expect(page.getByRole("button", { name: "경주 시작 →" })).toBeEnabled();
+});
+
+test("part drawing tips stay simple, assembly preview is still, and tail anchors do not jump when adding detail", async ({
+  page,
+}) => {
+  const snake = sampleSnake();
+  await page.addInitScript(
+    (s) =>
+      localStorage.setItem(
+        "kkumul-race:v1",
+        JSON.stringify({ snakes: [s], records: [] }),
+      ),
+    snake,
+  );
+  await page.goto("/");
+  await page
+    .getByRole("navigation", { name: "그리기 단계" })
+    .getByRole("button", { name: /꼬리/ })
+    .click();
+  await expect(page.getByLabel("꼬리 그리기 참고")).toContainText(
+    "물속 추진과 착지",
+  );
+  await expect(page.getByLabel("꼬리 그리기 참고")).toContainText(
+    "오른쪽 연결점에서 왼쪽",
+  );
+  await page.getByText("내 뱀 조립 미리보기", { exact: false }).click();
+  const preview = page.getByLabel("그린 뱀 실시간 조립 미리보기");
+  const first = await preview.evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  await page.waitForTimeout(400);
+  expect(await preview.evaluate((c: HTMLCanvasElement) => c.toDataURL())).toBe(
+    first,
+  );
+  const canvas = page.getByLabel("꼬리 그리기 캔버스");
+  const marker = () =>
+    canvas.evaluate((c: HTMLCanvasElement) => {
+      const data = c
+        .getContext("2d")!
+        .getImageData(0, 0, c.width, c.height).data;
+      let x = 0,
+        n = 0;
+      for (let i = 0; i < data.length; i += 4)
+        if (
+          data[i] === 229 &&
+          data[i + 1] === 174 &&
+          data[i + 2] === 73 &&
+          data[i + 3] > 240
+        ) {
+          x += (i / 4) % c.width;
+          n++;
+        }
+      return x / Math.max(1, n);
+    });
+  const before = await marker(),
+    box = (await canvas.boundingBox())!;
+  await canvas.click({
+    position: { x: (435 / 480) * box.width, y: (240 / 420) * box.height },
+  });
+  expect(Math.abs((await marker()) - before)).toBeLessThan(1);
+  await page.getByRole("button", { name: "연결점 자동 맞춤" }).click();
+  expect(await marker()).toBeGreaterThan(before + 30);
+  await page.getByRole("button", { name: "↶ 되돌리기" }).click();
+  expect(Math.abs((await marker()) - before)).toBeLessThan(1);
+  await page.getByRole("button", { name: "↶ 되돌리기" }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+test("results explain start, actual water speed and the part that hit an obstacle", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+  const panel = page.getByLabel("구간별 경기 분석");
+  await expect(panel).toContainText("출발 20m");
+  await expect(panel).toContainText("물 접촉 평균 속도");
+  await expect(panel).toContainText("머리");
+  await expect(panel).toContainText("꼬리");
+  await expect(panel).toContainText("착지");
 });
