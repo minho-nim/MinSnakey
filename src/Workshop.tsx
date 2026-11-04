@@ -1,3 +1,4 @@
+import { PART_DRAW_TIPS, partTraitLabels } from "./part-physics";
 import Brand from "./Brand";
 import { drawingConnection, snakeConnections } from "./connectivity";
 import { abilityScore } from "./abilities";
@@ -21,7 +22,7 @@ import {
 } from "./model";
 import { snakeRig, bodyRig, eraseStrokes, inkArea } from "./geometry";
 import { fitCanvas, renderPreview } from "./render";
-import { previewRacer } from "./physics";
+import { createRacer } from "./physics";
 const W = 480,
   H = 420;
 type Tool = "pen" | "eraser" | "anchor";
@@ -81,8 +82,8 @@ function Pad({
     const d = active.current
       ? {
           ...drawing([...raw.strokes, active.current], kind),
-          ...(raw.anchorManual
-            ? { anchor: raw.anchor, anchorManual: true }
+          ...(raw.anchorManual || (kind !== "body" && raw.strokes.length > 0)
+            ? { anchor: raw.anchor, anchorManual: raw.anchorManual }
             : {}),
         }
       : raw;
@@ -132,6 +133,21 @@ function Pad({
       Math.max(50, Math.min(W - 50, anchor.x)),
       anchor.y + 27,
     );
+    if (kind === "body" && d.strokes.length) {
+      const tail = bodyRig(d).source.at(-1)!;
+      ctx.beginPath();
+      ctx.arc(tail.x, tail.y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = "#76b7b0";
+      ctx.fill();
+      ctx.strokeStyle = "#315c59";
+      ctx.stroke();
+      ctx.fillStyle = "#476b65";
+      ctx.fillText(
+        "꼬리 연결점",
+        Math.max(50, Math.min(W - 50, tail.x)),
+        tail.y - 18,
+      );
+    }
     if (tool === "eraser" && cursor.current) {
       ctx.beginPath();
       ctx.arc(cursor.current.x, cursor.current.y, width * 1.5, 0, Math.PI * 2);
@@ -187,8 +203,15 @@ function Pad({
           ],
           kind,
         );
-      if (value.anchorManual && tool !== "anchor")
-        snapshot = { ...snapshot, anchor: value.anchor, anchorManual: true };
+      if (
+        (value.anchorManual || (kind !== "body" && value.strokes.length > 0)) &&
+        tool !== "anchor"
+      )
+        snapshot = {
+          ...snapshot,
+          anchor: value.anchor,
+          anchorManual: value.anchorManual,
+        };
       onLive(snapshot);
       lastLive.current = performance.now();
     }
@@ -201,8 +224,15 @@ function Pad({
       (active.current
         ? drawing([...value.strokes, active.current], kind)
         : value);
-    if (value.anchorManual && tool !== "anchor")
-      result = { ...result, anchor: value.anchor, anchorManual: true };
+    if (
+      (value.anchorManual || (kind !== "body" && value.strokes.length > 0)) &&
+      tool !== "anchor"
+    )
+      result = {
+        ...result,
+        anchor: value.anchor,
+        anchorManual: value.anchorManual,
+      };
     pointer.current = null;
     active.current = null;
     erased.current = null;
@@ -279,14 +309,14 @@ export default function Workshop({
     ink = inkArea(current.strokes),
     preview = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    let frame = 0;
-    const animate = (t: number) => {
-      if (preview.current)
-        renderPreview(preview.current, previewRacer(draft, t / 1000));
-      frame = requestAnimationFrame(animate);
+    const pose = createRacer(draft);
+    const paint = () => {
+      if (preview.current) renderPreview(preview.current, pose);
     };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
+    paint();
+    const observer = new ResizeObserver(paint);
+    if (preview.current) observer.observe(preview.current);
+    return () => observer.disconnect();
   }, [values, live]);
   const commit = (d: Drawing) => {
     history.current[kind] = [...history.current[kind], values[kind]].slice(-40);
@@ -359,6 +389,21 @@ export default function Workshop({
             </strong>
           </div>
         ))}
+      </div>
+      <div
+        className="part-draw-guide"
+        aria-label={`${names[kind]} 그리기 참고`}
+      >
+        <b>{PART_DRAW_TIPS[kind].title}</b>
+        <div>
+          {PART_DRAW_TIPS[kind].tips.map((tip) => (
+            <span key={tip}>{tip}</span>
+          ))}
+        </div>
+        <small>{PART_DRAW_TIPS[kind].note}</small>
+        {!!current.strokes.length && (
+          <p>{partTraitLabels(stats, kind).join(" · ")}</p>
+        )}
       </div>
       <div className="creation-stage">
         <div className="paper-heading">
@@ -455,6 +500,10 @@ export default function Workshop({
         </strong>
       </div>
       <div className="workshop-options">
+        <button onClick={() => commit(drawing(current.strokes, kind))}>
+          연결점 자동 맞춤
+        </button>
+
         <button
           aria-pressed={tool === "anchor"}
           onClick={() => setTool(tool === "anchor" ? "pen" : "anchor")}

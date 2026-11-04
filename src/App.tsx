@@ -233,7 +233,9 @@ function RaceView({
       </div>
       {terrainAt(race.course, p.distance).waterDepth > 0 && (
         <p className="water-status">
-          ≈ 물속 · 잠긴 면적 × 속도²에 따른 수중 저항
+          {p.waterDrag === 0 && p.jumpHeight > 0
+            ? "↗ 물 위로 점프 중 · 물 저항 없음"
+            : "≈ 물에 닿은 부위만 저항을 받아요"}
         </p>
       )}
       <div className="race-hud">
@@ -495,7 +497,7 @@ export default function App() {
     setSharing(true);
     try {
       const base = location.hostname.endsWith(".chatgpt.site")
-        ? "https://minho-nim.github.io/snake-race/"
+        ? "https://minho-nim.github.io/MinSnakey/"
         : location.href;
       const urls = await socialChallengeURLs(race, base, taunt);
       setShareURL(urls.share);
@@ -622,7 +624,7 @@ export default function App() {
           }}
         >
           <Brand />
-          <span className="version">v0.7.4</span>
+          <span className="version">v0.8</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">
@@ -1057,6 +1059,38 @@ export default function App() {
                     : `이전 최고 ${fmt(previousBest)}`}
                 </b>
                 <p>최고 속도 {race.racers[0].peak.toFixed(2)}m/s</p>
+              </div>
+            </div>
+            <div className="race-breakdown" aria-label="구간별 경기 분석">
+              <div>
+                <small>출발 20m</small>
+                <b>{fmt(race.racers[0].telemetry.split20)}</b>
+              </div>
+              <div>
+                <small>물 접촉 평균 속도</small>
+                <b>
+                  {race.racers[0].telemetry.waterTime > 0
+                    ? (
+                        race.racers[0].telemetry.waterDistance /
+                        race.racers[0].telemetry.waterTime
+                      ).toFixed(1) + "m/s"
+                    : "물 접촉 없음"}
+                </b>
+              </div>
+              <div>
+                <small>걸린 부위</small>
+                <b>
+                  {(["head", "body", "tail"] as const)
+                    .map(
+                      (k) =>
+                        `${{ head: "머리", body: "몸통", tail: "꼬리" }[k]} ${race.racers[0].hitParts.filter((h) => h.part === k).length}회`,
+                    )
+                    .join(" · ")}
+                </b>
+              </div>
+              <div>
+                <small>착지</small>
+                <b>{race.racers[0].telemetry.landings}회</b>
               </div>
             </div>
             <div className="result-table">

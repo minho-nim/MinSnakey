@@ -64,6 +64,11 @@ export function drawSnake(
 ) {
   const body = r.snake.parts.body,
     rig = snakeRig(r.snake);
+  ctx.save();
+  const pivot = x + r.stats.centerOfMass * scale;
+  ctx.translate(pivot, y);
+  ctx.rotate(r.pitch);
+  ctx.translate(-pivot, -y);
   body.strokes.forEach((stroke, strokeIndex) => {
     const points = stroke.points.map((_, i) =>
       skinPoint(rig.bindings[strokeIndex][i], r.nodes, rig.scale),
@@ -103,6 +108,7 @@ export function drawSnake(
   }
   part("tail");
   part("head");
+  ctx.restore();
 }
 export function snakeExtents(r: Racer) {
   const rig = snakeRig(r.snake),
@@ -326,14 +332,6 @@ export function renderRace(
         }
       : r;
     ctx.save();
-    if (race.time < r.stumbleUntil) {
-      const fall = Math.sin(
-        Math.PI * Math.min(1, (r.stumbleUntil - race.time) / 0.7),
-      );
-      ctx.translate(x, y);
-      ctx.rotate(0.85 * fall);
-      ctx.translate(-x, -y);
-    }
     drawSnake(ctx, pose, x, y, scale);
     ctx.restore();
     if (race.time < r.stumbleUntil) {

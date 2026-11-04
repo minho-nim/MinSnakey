@@ -5,7 +5,7 @@ import { renderCard } from "./card";
 declare const __GAME_HTML__: string;
 declare const __ICON_ASSETS__: Record<string, string>;
 declare const __MANIFEST_JSON__: string;
-const GAME = "https://minho-nim.github.io/snake-race/";
+const GAME = "https://minho-nim.github.io/MinSnakey/";
 const escape = (text: string) =>
   text
     .replaceAll("&", "&amp;")

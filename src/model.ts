@@ -1,4 +1,6 @@
-import { vehicleCharacteristics } from "./dynamics";
+import { drawingConnection } from "./ink-connection";
+import { inertiaOf, partResistance, type PartProfiles } from "./part-physics";
+import { vehicleCharacteristics, terminalSpeed } from "./dynamics";
 import { snakeRig, inkArea, pathLength } from "./geometry";
 export type Point = { x: number; y: number };
 export type Stroke = { points: Point[]; color: string; width: number };
@@ -17,8 +19,12 @@ export type Snake = {
   createdAt: number;
 };
 export type Mode = "auto" | "manual";
-export const RULES_VERSION = "morphology-v4";
+export const RULES_VERSION = "morphology-v5";
 export type Stats = {
+  parts: PartProfiles;
+  centerOfMass: number;
+  inertia: number;
+  bodyTransmission: number;
   frontalArea: number;
   dragCoefficient: number;
   rollingCoefficient: number;
@@ -117,7 +123,9 @@ export function analyze(s: Snake): Stats {
   );
   const meanWidth = bodyPath ? inkArea(body.strokes) / bodyPath : 12;
   const thickness = clamp(meanWidth * rig.scale, 0.03, 0.65);
-  const headBounds = bounds(s.parts.head.strokes),
+  const cosmetics = drawingConnection(s.parts.head, "head").eyes;
+  const headInk = s.parts.head.strokes.filter((_, i) => !cosmetics.includes(i));
+  const headBounds = bounds(headInk),
     tailBounds = bounds(s.parts.tail.strokes);
   const headArea = s.parts.head.strokes.length
     ? headBounds.w * headBounds.h * rig.scale ** 2
@@ -126,9 +134,7 @@ export function analyze(s: Snake): Stats {
     ? tailBounds.w * tailBounds.h * rig.scale ** 2
     : 0;
   const ink =
-    inkArea(body.strokes) +
-    inkArea(s.parts.head.strokes) +
-    inkArea(s.parts.tail.strokes);
+    inkArea(body.strokes) + inkArea(headInk) + inkArea(s.parts.tail.strokes);
   const mass = clamp(
     0.4 +
       ((ink * (rig.scale * 95) ** 2) / 10500) ** 1.35 +
@@ -166,7 +172,105 @@ export function analyze(s: Snake): Stats {
     headLoad,
     flex,
   });
+  const widths = {
+    head: headBounds.w * rig.scale,
+    body: length,
+    tail: tailBounds.w * rig.scale,
+  };
+  const diameters = {
+    head: Math.max(0.05, headBounds.h * rig.scale * 0.8),
+    body: thickness,
+    tail: Math.max(0.04, tailBounds.h * rig.scale * 0.65),
+  };
+  const inks = {
+    head: inkArea(headInk),
+    body: inkArea(body.strokes),
+    tail: inkArea(s.parts.tail.strokes),
+  };
+  const centers = {
+    head: Math.max(
+      0,
+      (headBounds.x + headBounds.w / 2 - s.parts.head.anchor.x) * rig.scale,
+    ),
+    body: rig.rest.reduce((n, p) => n + p.x, 0) / rig.rest.length,
+    tail: rig.rest.at(-1)!.x - widths.tail * 0.5,
+  };
+  const parts = Object.fromEntries(
+    (["head", "body", "tail"] as const).map((kind) => [
+      kind,
+      {
+        mass:
+          { head: 0.08, body: 0.28, tail: 0.04 }[kind] +
+          ((mass - 0.4) * inks[kind]) / Math.max(1, ink),
+        centerX: centers[kind],
+        diameter: diameters[kind],
+        frontalArea: (Math.PI * diameters[kind] ** 2) / 4,
+        dragCoefficient:
+          kind === "head"
+            ? clamp(
+                0.3 + 0.25 / (1 + widths.head / Math.max(0.04, diameters.head)),
+                0.3,
+                0.6,
+              )
+            : kind === "body"
+              ? vehicle.dragCoefficient
+              : 0.55,
+        exposure: { head: 1, body: 0.55, tail: 0.35 }[kind],
+        finArea:
+          kind === "tail"
+            ? clamp(
+                tailBounds.w * tailBounds.h * rig.scale ** 2 * 0.18,
+                0.005,
+                0.8,
+              )
+            : 0,
+        balance:
+          kind === "tail"
+            ? clamp(
+                widths.tail * 0.2 + (inks.tail / Math.max(1, ink)) * 0.4,
+                0,
+                1,
+              )
+            : vehicle.stability,
+      },
+    ]),
+  ) as PartProfiles;
+  const totalPartMass = Object.values(parts).reduce((n, p) => n + p.mass, 0);
+  for (const part of Object.values(parts)) part.mass *= mass / totalPartMass;
+  const bodyTransmission = clamp(
+    0.72 + 0.28 * Math.exp(-(((flex - 0.95) / 0.48) ** 2)),
+    0.65,
+    1,
+  );
+  vehicle.efficiency *= bodyTransmission;
+  vehicle.frontalArea = Object.values(parts).reduce(
+    (n, p) => n + p.frontalArea * p.exposure,
+    0,
+  );
+  vehicle.dragCoefficient =
+    Object.values(parts).reduce(
+      (n, p) => n + p.dragCoefficient * p.frontalArea * p.exposure,
+      0,
+    ) / Math.max(0.001, vehicle.frontalArea);
+  vehicle.maxSpeed = terminalSpeed(
+    vehicle.drivePower * vehicle.efficiency,
+    mass,
+    vehicle.frontalArea,
+    vehicle.dragCoefficient,
+    vehicle.rollingCoefficient,
+  );
+  vehicle.acceleration = clamp(
+    (Math.min(vehicle.driveForce * vehicle.efficiency, vehicle.traction) -
+      vehicle.rollingCoefficient * mass * 9.81) /
+      mass,
+    0.25,
+    10.5,
+  );
+  const rotational = inertiaOf(parts, length);
   return {
+    parts,
+    ...rotational,
+    bodyTransmission,
     length,
     curve,
     flex,
@@ -433,9 +537,22 @@ const opponentCache = new WeakMap<Snake, Snake[]>();
 export function matchedOpponents(player: Snake): Snake[] {
   const cached = opponentCache.get(player);
   if (cached) return cached;
-  const pace = (s: Stats) =>
-    100 / Math.max(1, s.maxSpeed) +
-    s.maxSpeed / (2 * Math.max(0.25, s.acceleration));
+  const pace = (s: Stats) => {
+    const fluid = partResistance(s.parts, 1, 0.035, 0, 0, s.centerOfMass),
+      q = fluid.air + fluid.water.head + fluid.water.body + fluid.water.tail;
+    const waterSpeed = terminalSpeed(
+      s.drivePower * s.efficiency * 0.8,
+      s.mass,
+      (q * 2) / 1.225,
+      1,
+      s.rollingCoefficient * 0.7,
+    );
+    return (
+      84 / Math.max(1, s.maxSpeed) +
+      16 / Math.max(0.5, waterSpeed) +
+      s.maxSpeed / (2 * Math.max(0.25, s.acceleration))
+    );
+  };
   const target = pace(analyze(player));
   const opponents = [1, 2, 3].map((index) => {
     const template = sampleSnake(index),
@@ -453,6 +570,17 @@ export function matchedOpponents(player: Snake): Snake[] {
               ...template.parts[kind],
               strokes: template.parts[kind].strokes.map((stroke) => ({
                 ...stroke,
+                points:
+                  kind === "body"
+                    ? stroke.points
+                    : stroke.points.map((p) => {
+                        const anchor = template.parts[kind].anchor,
+                          k = clamp(Math.sqrt(factor), 0.75, 1.6);
+                        return {
+                          x: anchor.x + (p.x - anchor.x) * k,
+                          y: anchor.y + (p.y - anchor.y) * k,
+                        };
+                      }),
                 width: clamp(stroke.width * factor, 1, 40),
               })),
             },
