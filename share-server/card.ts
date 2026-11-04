@@ -1,7 +1,7 @@
 import { decode, encode } from "fast-png";
 import atlasData from "./generated/font-atlas.json";
 import { previewRacer } from "../src/physics";
-import { bodyRig, skinPoint } from "../src/geometry";
+import { bodyRig, skinPoint, partFrame } from "../src/geometry";
 import { snakeExtents } from "../src/render";
 import { courseInfo } from "../src/courses";
 import { TAUNTS } from "../src/share-copy";
@@ -125,19 +125,7 @@ export function renderCard(challenge: Challenge) {
     ),
   }));
   for (const kind of ["head", "tail"] as const) {
-    const head = kind === "head",
-      index = head ? 0 : racer.nodes.length - 1,
-      node = head
-        ? skinPoint(rig.head, racer.nodes, rig.scale)
-        : racer.nodes[index],
-      other =
-        racer.nodes[
-          head ? Math.min(racer.nodes.length - 1, rig.head.bone + 1) : index - 1
-        ],
-      angle = Math.atan2(
-        head ? node.y - other.y : other.y - node.y,
-        head ? node.x - other.x : other.x - node.x,
-      ),
+    const { node, angle } = partFrame(rig, racer.nodes, kind),
       co = Math.cos(angle),
       si = Math.sin(angle),
       part = challenge.snake.parts[kind];

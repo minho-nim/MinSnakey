@@ -161,3 +161,21 @@ export function eraseStrokes(
   }
   return result.slice(0, 100);
 }
+
+/** Broad neck direction keeps a wavy/vertical endpoint from turning the face
+ * downward or backward. The actual attachment point stays on the source ink. */
+export function partFrame(rig: BodyRig, nodes: Point[], kind: "head" | "tail") {
+  const head = kind === "head",
+    last = nodes.length - 1;
+  const node = head ? skinPoint(rig.head, nodes, rig.scale) : nodes[last];
+  const other =
+    nodes[head ? Math.min(last, rig.head.bone + 5) : Math.max(0, last - 5)];
+  const dx = head ? node.x - other.x : other.x - node.x;
+  const dy = head ? node.y - other.y : other.y - node.y;
+  const angle = limit(
+    Math.atan2(dy, Math.max(0.1, Math.abs(dx))),
+    head ? -0.22 : -0.35,
+    head ? 0.22 : 0.35,
+  );
+  return { node, angle };
+}

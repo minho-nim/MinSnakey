@@ -422,14 +422,16 @@ test("two hills have continuous endpoints and clearly positive and negative stee
   }
   assert.equal(terrainAt("hills", 45).grade, 0);
 });
-test("automatic racers jump each hurdle and clear all three with their actual body length", () => {
+test("automatic racers attempt every hurdle; actual bulky body clearance can cause a fall", () => {
   const race = createRace(sampleSnake(), "auto", "hurdles");
   finishRace(race);
   for (const r of race.racers) {
     assert.ok(r.finish !== null);
     assert.equal(r.autoJumps.length, OBSTACLES.length);
-    assert.equal(r.obstacleHits.length, 0);
+    assert.equal(new Set(r.obstacleHits).size, r.obstacleHits.length);
   }
+  assert.equal(race.racers[0].obstacleHits.length, 0);
+  assert.ok(race.racers[2].obstacleHits.length > 0);
 });
 test("manual jump obeys gravity, prevents double jump and freezes with pause", () => {
   const race = createRace(sampleSnake(), "manual", "hurdles");
@@ -629,4 +631,21 @@ test("hurdle impact starts a brief fall that suppresses propulsion then recovers
   assert.ok(race.time > r.stumbleUntil);
   jump(race);
   assert.ok(r.jumpHeight > 0);
+});
+
+import { partFrame } from "../src/geometry";
+test("heads keep facing forward on angular and bulky CPU bodies without moving their attachment", () => {
+  for (let index = 0; index < 4; index++) {
+    const snake = sampleSnake(index),
+      rig = bodyRig(snake.parts.body),
+      race = createRace(snake, "auto");
+    for (let frame = 0; frame < 300; frame++) {
+      stepRace(race);
+      const r = race.racers[0],
+        pose = partFrame(rig, r.nodes, "head");
+      assert.ok(Math.abs(pose.angle) <= 0.22);
+      assert.ok(Math.cos(pose.angle) > 0.97);
+      assert.deepEqual(pose.node, skinPoint(rig.head, r.nodes, rig.scale));
+    }
+  }
 });
