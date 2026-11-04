@@ -306,7 +306,7 @@ export default function Workshop({
       <div className="arcade-title">
         <span className="mini-title">내 낙서가 진짜 달린다!</span>
         <h1>
-          꼬물<span>레이스</span>
+          Min<span>Snakey</span>
           <i>〰</i>
         </h1>
       </div>
