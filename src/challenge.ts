@@ -1,5 +1,5 @@
 import { snakeConnections } from "./connectivity";
-import { TAUNTS, SHARE_ORIGIN } from "./share-copy";
+import { TAUNTS, SHARE_ORIGIN, SHARE_CARD_VERSION } from "./share-copy";
 import { RULES_VERSION, type Snake, type Mode } from "./model";
 import type { CourseId } from "./courses";
 import { validSnake } from "./storage";
@@ -164,5 +164,7 @@ export async function socialChallengeURLs(race: Race, base: string, taunt = 0) {
     image = new URL("/og.png", origin);
   share.searchParams.set("d", gameURL.hash.slice(11));
   image.searchParams.set("d", gameURL.hash.slice(11));
+  share.searchParams.set("v", SHARE_CARD_VERSION);
+  image.searchParams.set("v", SHARE_CARD_VERSION);
   return { share: share.href, image: image.href, game };
 }

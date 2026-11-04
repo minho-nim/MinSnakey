@@ -620,8 +620,8 @@ export default function App() {
             setPage("home");
           }}
         >
-          <span className="brand-mark">〰</span>꼬물 레이스
-          <span className="version">v0.7.2</span>
+          <span className="brand-mark">〰</span>MinSnakey
+          <span className="version">v0.7.3</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">
@@ -708,7 +708,7 @@ export default function App() {
             <div className="arcade-title">
               <span className="mini-title">내 낙서가 진짜 달린다!</span>
               <h1>
-                꼬물<span>레이스</span>
+                Min<span>Snakey</span>
                 <i>〰</i>
               </h1>
             </div>
@@ -1172,7 +1172,7 @@ export default function App() {
         )}
       </main>
       <footer>
-        <span>〰 꼬물 레이스</span>
+        <span>〰 MinSnakey</span>
         <p>작은 낙서의 커다란 레이스.</p>
         <small>로그인 없이 · 외부 AI 없이 · 내 기기에만 저장</small>
       </footer>

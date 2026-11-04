@@ -103,7 +103,7 @@ export function renderCard(challenge: Challenge) {
   rect(14, 14, 1172, 602, cream, 28);
   rect(43, 260, 1114, 246, [228, 209, 169], 21);
   for (let y = 315; y < 506; y += 78) rect(44, y, 1112, 3, [255, 248, 225]);
-  text("꼬물 레이스 · 친구 도전", 60, 25, 27, dark);
+  text("MinSnakey · 친구 도전", 60, 25, 27, dark);
   const taunt = TAUNTS[challenge.taunt ?? 0];
   text(taunt.title, 58, 68, 112, [197, 120, 44]);
   text(taunt.subtitle, 65, 198, 42, dark);
