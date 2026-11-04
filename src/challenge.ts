@@ -2,7 +2,12 @@ import { RULES_VERSION, type Snake, type Mode } from "./model";
 import type { CourseId } from "./courses";
 import { validSnake } from "./storage";
 import type { Race } from "./physics";
-export type ReplayInput = { time: number; side: number };
+export type ReplayInput = {
+  time: number;
+  side: number;
+  kind?: "push" | "jump";
+  rate?: number;
+};
 export type Challenge = {
   v: 1;
   rules: string;
@@ -47,9 +52,11 @@ export function validChallenge(value: unknown): value is Challenge {
     let last = -1;
     return (
       c.v === 1 &&
-      c.rules === RULES_VERSION &&
+      (c.rules === RULES_VERSION ||
+        (c.rules === "morphology-v1" &&
+          ["sprint", "puddles"].includes(c.course))) &&
       validSnake(c.snake) &&
-      ["sprint", "hills", "puddles"].includes(c.course) &&
+      ["sprint", "hills", "puddles", "hurdles"].includes(c.course) &&
       ["auto", "manual"].includes(c.mode) &&
       Number.isFinite(c.targetTime) &&
       c.targetTime > 0 &&
@@ -62,7 +69,14 @@ export function validChallenge(value: unknown): value is Challenge {
           input.time >= 0 &&
           input.time <= 90 &&
           input.time >= last &&
-          (input.side === -1 || input.side === 1);
+          (input.rate === undefined ||
+            (Number.isFinite(input.rate) &&
+              input.rate >= 1 &&
+              input.rate <= 24)) &&
+          (input.kind === "jump"
+            ? input.side === 0
+            : (input.kind === undefined || input.kind === "push") &&
+              (input.side === -1 || input.side === 1));
         last = input.time;
         return valid;
       })

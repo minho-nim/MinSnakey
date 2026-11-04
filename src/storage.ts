@@ -99,3 +99,21 @@ export function best(
     .map((r) => r.time);
   return times.length ? Math.min(...times) : null;
 }
+
+export function previousRulesBest(
+  data: Saved,
+  snakeId: string,
+  mode: Mode,
+  course: CourseId,
+) {
+  const times = data.records
+    .filter(
+      (r) =>
+        r.snakeId === snakeId &&
+        r.mode === mode &&
+        (r.course || "sprint") === course &&
+        (r.rulesVersion || "legacy") !== RULES_VERSION,
+    )
+    .map((r) => r.time);
+  return times.length ? Math.min(...times) : null;
+}

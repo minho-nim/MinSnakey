@@ -1,5 +1,5 @@
 import type { Challenge, ReplayInput } from "./challenge";
-import { terrainAt, type CourseId } from "./courses";
+import { terrainAt, OBSTACLES, type CourseId } from "./courses";
 import {
   AIR_DENSITY,
   WATER_DENSITY,
@@ -20,7 +20,7 @@ import {
   type Point,
 } from "./model";
 export const DT = 1 / 120;
-export const DEFAULT_PLAYBACK_RATE = 1.5;
+export const DEFAULT_PLAYBACK_RATE = 3;
 export type Racer = {
   snake: Snake;
   stats: Stats;
@@ -38,12 +38,19 @@ export type Racer = {
   lastSide: number;
   lastInput: number;
   impulse: number;
+  inputRate: number;
+  jumpHeight: number;
+  jumpVelocity: number;
+  lastJump: number;
+  obstacleHits: number[];
+  autoJumps: number[];
 };
 export type Race = {
   course: CourseId;
   inputs: ReplayInput[];
   challenge: Challenge | null;
   ghostInputIndex: number;
+  playbackRate: number;
   racers: Racer[];
   mode: Mode;
   time: number;
@@ -77,6 +84,12 @@ export function createRacer(snake: Snake): Racer {
     lastSide: 0,
     lastInput: -10,
     impulse: 0,
+    inputRate: 1,
+    jumpHeight: 0,
+    jumpVelocity: 0,
+    lastJump: -10,
+    obstacleHits: [],
+    autoJumps: [],
   };
 }
 export function createRace(
@@ -90,6 +103,7 @@ export function createRace(
     inputs: [],
     challenge,
     ghostInputIndex: 0,
+    playbackRate: 1,
     racers: [
       createRacer(snake),
       ...(challenge
@@ -111,17 +125,18 @@ export function createRace(
     timedOut: false,
   };
 }
-function applyInput(r: Racer, side: number, time: number) {
-  const interval = time - r.lastInput;
+function applyInput(r: Racer, side: number, time: number, rate = 1) {
+  const interval = (time - r.lastInput) / rate;
   if (side === r.lastSide || interval < 0.12) return false;
   const ideal = 1 / (r.stats.frequency * 2),
     quality = clamp(1 - Math.abs(interval - ideal) / ideal, 0.2, 1);
   r.impulse = Math.min(1.1, r.impulse + 0.4 + 0.35 * quality);
+  r.inputRate = rate;
   r.lastInput = time;
   r.lastSide = side;
   return true;
 }
-export function propel(race: Race, side: number) {
+export function propel(race: Race, side: number, rate = race.playbackRate) {
   if (
     race.paused ||
     race.done ||
@@ -130,8 +145,50 @@ export function propel(race: Race, side: number) {
     race.racers[0].finish !== null
   )
     return;
-  if (applyInput(race.racers[0], side, race.time))
-    race.inputs.push({ time: race.time, side });
+  if (applyInput(race.racers[0], side, race.time, clamp(rate, 1, 24)))
+    race.inputs.push({ time: race.time, side, rate: clamp(rate, 1, 24) });
+}
+function launchJump(r: Racer, time: number) {
+  if (r.finish !== null || r.jumpHeight > 0 || time - r.lastJump < 0.2)
+    return false;
+  const energy =
+    Math.min(80, Math.max(35, r.stats.drivePower * 1.75)) * r.energy;
+  r.jumpVelocity = Math.min(9, Math.sqrt((2 * energy) / r.stats.mass));
+  r.jumpHeight = 0.001;
+  r.lastJump = time;
+  r.energy = clamp(r.energy - energy / r.stats.energyCapacity, 0.55, 1);
+  return true;
+}
+export function jump(race: Race) {
+  if (
+    race.course !== "hurdles" ||
+    race.mode !== "manual" ||
+    race.paused ||
+    race.done ||
+    race.countdown > 0
+  )
+    return;
+  if (launchJump(race.racers[0], race.time))
+    race.inputs.push({ time: race.time, side: 0, kind: "jump" });
+}
+function replayInput(
+  r: Racer,
+  input: ReplayInput,
+  time: number,
+  course: CourseId,
+) {
+  if (input.kind === "jump") {
+    if (course === "hurdles") launchJump(r, time);
+  } else applyInput(r, input.side, time, input.rate || 1);
+}
+function autoJump(r: Racer, time: number) {
+  if (r.jumpHeight > 0 || r.finish !== null) return;
+  OBSTACLES.forEach((obstacle, i) => {
+    const gap = obstacle.start - r.distance - r.stats.headReach;
+    if (gap <= r.speed * 0.25 + 0.3 && gap > -0.5 && !r.autoJumps.includes(i)) {
+      if (launchJump(r, time)) r.autoJumps.push(i);
+    }
+  });
 }
 // Active backbone, inextensible links, and lateral contact work. This is a
 // bounded game locomotion model, not a full rigid-body/bio-mechanical solver.
@@ -143,6 +200,15 @@ export function stepRacer(
   terrain = { grade: 0, waterDepth: 0 },
 ) {
   if (r.finish !== null) return;
+  if (r.jumpHeight > 0 || r.jumpVelocity > 0) {
+    r.jumpHeight += r.jumpVelocity * dt - 0.5 * GRAVITY * dt * dt;
+    r.jumpVelocity -= GRAVITY * dt;
+    if (r.jumpHeight <= 0) {
+      r.jumpHeight = 0;
+      r.jumpVelocity = 0;
+    }
+  }
+
   const s = r.stats,
     n = r.nodes.length;
   r.previous = r.nodes.map((p) => ({ ...p }));
@@ -195,10 +261,13 @@ export function stepRacer(
     : 0;
   const buoyancy =
     WATER_DENSITY * GRAVITY * (s.mass / 1050) * submergedFraction;
-  const normalForce = Math.max(
-    0,
-    (s.mass * GRAVITY) / Math.sqrt(1 + terrain.grade ** 2) - buoyancy,
-  );
+  const normalForce =
+    r.jumpHeight > 0
+      ? 0
+      : Math.max(
+          0,
+          (s.mass * GRAVITY) / Math.sqrt(1 + terrain.grade ** 2) - buoyancy,
+        );
   const tractionLimit = s.grip * (wet ? 0.65 : 1) * normalForce;
   const motorForce =
     Math.min(s.driveForce, s.drivePower / Math.max(0.5, r.speed)) *
@@ -230,6 +299,8 @@ export function stepRacer(
       dt +
       (dt * (100 - before)) / Math.max(0.000001, r.distance - before);
     r.distance = 100;
+    r.jumpHeight = 0;
+    r.jumpVelocity = 0;
   }
 }
 export function stepRace(race: Race, dt = DT) {
@@ -245,9 +316,19 @@ export function stepRace(race: Race, dt = DT) {
       inputs[race.ghostInputIndex].time <= race.time + dt / 2
     ) {
       const input = inputs[race.ghostInputIndex++];
-      applyInput(race.racers[1], input.side, race.time);
+      replayInput(race.racers[1], input, race.time, race.course);
     }
   }
+  if (race.course === "hurdles")
+    race.racers.forEach((r, i) => {
+      const automatic =
+        i === 0
+          ? race.mode === "auto"
+          : i === 1 && race.challenge
+            ? race.challenge.mode === "auto"
+            : true;
+      if (automatic) autoJump(r, race.time);
+    });
   race.time += dt;
   race.racers.forEach((r, i) => {
     let drive = 1;
@@ -255,10 +336,28 @@ export function stepRace(race: Race, dt = DT) {
       (i === 0 && race.mode === "manual") ||
       (i === 1 && race.challenge?.mode === "manual")
     ) {
-      r.impulse = Math.max(0, r.impulse - dt * 1.25);
+      r.impulse = Math.max(0, r.impulse - (dt * 1.25) / r.inputRate);
       drive = clamp(r.impulse, 0, 1);
     }
     stepRacer(r, dt, drive, race.time, terrainAt(race.course, r.distance));
+    if (race.course === "hurdles" && r.finish === null)
+      OBSTACLES.forEach((obstacle, index) => {
+        const front = r.distance + r.stats.headReach,
+          back =
+            r.distance +
+            r.nodes.reduce((min, node) => Math.min(min, node.x), 0) -
+            r.stats.tailReach;
+        if (
+          front >= obstacle.start &&
+          back <= obstacle.end &&
+          r.jumpHeight < obstacle.height &&
+          !r.obstacleHits.includes(index)
+        ) {
+          r.obstacleHits.push(index);
+          r.speed *= 0.45;
+          r.energy = clamp(r.energy - 0.035, 0.55, 1);
+        }
+      });
   });
   race.timedOut = race.time >= 90;
   race.done = race.timedOut || race.racers.every((r) => r.finish !== null);
@@ -272,8 +371,9 @@ export function advance(race: Race, elapsed: number, playbackRate = 1) {
     race.countdown -= used;
     wallTime -= used;
   }
-  const rate = Number.isFinite(playbackRate) ? clamp(playbackRate, 1, 6) : 1;
+  const rate = Number.isFinite(playbackRate) ? clamp(playbackRate, 1, 24) : 1;
   // Clamp real frame gaps before scaling so 6x playback also works at low FPS.
+  race.playbackRate = rate;
   race.accumulator += wallTime * rate;
   while (race.accumulator >= DT) {
     stepRace(race);
@@ -298,7 +398,9 @@ export function verifyChallengeRecord(challenge: Challenge) {
       inputIndex < challenge.inputs.length &&
       challenge.inputs[inputIndex].time <= replay.time + DT / 2
     ) {
-      propel(replay, challenge.inputs[inputIndex++].side);
+      const input = challenge.inputs[inputIndex++];
+      if (input.kind === "jump") jump(replay);
+      else propel(replay, input.side, input.rate || 1);
     }
     stepRace(replay);
   }

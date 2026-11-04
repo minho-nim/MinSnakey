@@ -2842,3 +2842,264 @@ meter::-webkit-meter-optimum-value {
     font-size: 12px;
   }
 }
+.race-status-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -8px 0 12px;
+  font-size: 10px;
+  color: #e8eacb;
+}
+.race-status-line strong {
+  padding: 5px 9px;
+  background: #fff1c7;
+  color: #84622c;
+  border: 1px solid #4d623a;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.game-shell .race-canvas.terrain-canvas {
+  height: 580px;
+}
+.jump-button {
+  background: #e6b34d;
+  border: 3px solid #3a432e;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 #697c47;
+  min-height: 56px;
+  min-width: 190px;
+  padding: 10px 28px;
+  font-size: 23px;
+  font-weight: 900;
+  color: #35402b;
+  margin: 23px auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  touch-action: manipulation;
+}
+.jump-button small {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #6e6f42;
+}
+.jump-button:disabled {
+  opacity: 0.55;
+}
+.jump-hint {
+  font-size: 11px;
+  color: #8c936d;
+  margin-top: 15px;
+}
+.hill-preview {
+  background: #eaf0d6;
+  border: 2px solid #b4c591;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  padding: 12px;
+}
+.hill-preview svg {
+  width: 100%;
+  height: 66px;
+  display: block;
+}
+.hill-preview span {
+  display: block;
+  font-size: 10px;
+  text-align: center;
+  color: #70844d;
+  margin-top: 7px;
+}
+.live-ability-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  background: #fff1d4;
+  border: 3px solid #35442d;
+  border-radius: 11px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 3px 0 #203628;
+}
+.live-ability-strip > div {
+  text-align: center;
+  border-right: 1px solid #d5d9b9;
+}
+.live-ability-strip > div:last-child {
+  border: 0;
+}
+.live-ability-strip span {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #718151;
+}
+.live-ability-strip strong {
+  font-size: 24px;
+  font-weight: 900;
+  color: #405c31;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+.ability-heading {
+  font-size: 16px;
+}
+.ability-heading > span {
+  font-size: 12px;
+  padding: 5px 8px;
+}
+.ability-bars {
+  gap: 10px;
+}
+.ability-bars .ability-item {
+  padding: 11px;
+  background: #fffdf0;
+  border: 1px solid #ccd5af;
+  border-radius: 8px;
+  --stat-color: #799e50;
+}
+.ability-bars label {
+  font-size: 12px;
+  font-weight: 700;
+  align-items: center;
+  color: #4c6038;
+}
+.ability-bars label > b {
+  font-size: 23px;
+  line-height: 1.2;
+  color: #324f2c;
+}
+.ability-bars meter {
+  height: 11px;
+  margin-top: 8px;
+}
+.ability-bars meter::-webkit-meter-optimum-value {
+  background: var(--stat-color);
+}
+.ability-bars meter::-moz-meter-bar {
+  background: var(--stat-color);
+}
+.ability-item.acceleration {
+  --stat-color: #c98d40;
+}
+.ability-item.maxSpeed {
+  --stat-color: #598cb6;
+}
+.ability-item.stamina {
+  --stat-color: #72a054;
+}
+.ability-item.flex {
+  --stat-color: #9b7eb4;
+}
+.ability-item.stability {
+  --stat-color: #759e9b;
+}
+.ability-item.traction {
+  --stat-color: #b38c68;
+}
+.morphology-values b {
+  font-size: 15px;
+}
+.racer-profile .ability-bars {
+  gap: 8px;
+}
+.racer-profile .ability-bars label {
+  font-size: 11px;
+}
+.racer-profile .ability-bars label > b {
+  font-size: 20px;
+}
+.racer-profile .morphology-values b {
+  font-size: 12px;
+}
+.racer-profile .ability-item {
+  padding: 9px;
+}
+.empty-own-racer {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #8a8767;
+  background: #f0edd9;
+  border: 1px dashed #bac79e;
+  border-radius: 10px;
+  padding: 18px;
+  margin-top: 20px;
+}
+.challenge-paths {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 24px 0 15px;
+}
+.challenge-paths > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 10px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.challenge-paths small {
+  font-size: 10px;
+  font-weight: 400;
+}
+.challenge-paths > button:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+  background: #dedcc8;
+  border-color: #a1ab8c;
+  color: #80876f;
+}
+@media (max-width: 650px) {
+  .game-shell .race-canvas.terrain-canvas {
+    height: 500px;
+  }
+  .race-status-line {
+    font-size: 9px;
+    gap: 8px;
+  }
+  .race-status-line strong {
+    font-size: 10px;
+  }
+  .racer-profile .ability-bars {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ability-bars label {
+    font-size: 11px;
+  }
+  .ability-bars label > b {
+    font-size: 21px;
+  }
+  .racer-profile .ability-bars label > b {
+    font-size: 21px;
+  }
+  .ability-heading {
+    font-size: 14px;
+  }
+  .morphology-values b,
+  .racer-profile .morphology-values b {
+    font-size: 13px;
+  }
+  .challenge-paths {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .challenge-paths > button {
+    min-height: 77px;
+    font-size: 16px;
+  }
+  .jump-button {
+    min-height: 58px;
+    min-width: 190px;
+  }
+  .live-ability-strip {
+    padding: 8px 10px;
+  }
+  .live-ability-strip strong {
+    font-size: 23px;
+  }
+}

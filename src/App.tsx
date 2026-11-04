@@ -1,5 +1,5 @@
 import { readChallenge, challengeLink, type Challenge } from "./challenge";
-import { COURSES, courseInfo, type CourseId } from "./courses";
+import { COURSES, courseInfo, terrainAt, type CourseId } from "./courses";
 import AbilityPanel from "./AbilityPanel";
 import Workshop from "./Workshop";
 import { useEffect, useRef, useState } from "react";
@@ -17,6 +17,7 @@ import {
   advance,
   DEFAULT_PLAYBACK_RATE,
   finishRace,
+  jump,
   createRace,
   previewRacer,
   propel,
@@ -25,7 +26,7 @@ import {
   type Race,
 } from "./physics";
 import { renderPreview, renderRace } from "./render";
-import { best, load, save, type Saved } from "./storage";
+import { best, previousRulesBest, load, save, type Saved } from "./storage";
 const fmt = (n: number | null) => (n === null ? "—" : `${n.toFixed(2)}초`);
 function Preview({
   snake,
@@ -102,7 +103,15 @@ function RaceView({
         if (!e.repeat)
           propel(race, ["a", "A", "ArrowLeft"].includes(e.key) ? -1 : 1);
       }
-      if (e.code === "Space") {
+      if (
+        race.course === "hurdles" &&
+        ["Space", "ArrowUp", "KeyW"].includes(e.code)
+      ) {
+        e.preventDefault();
+        if (!e.repeat) jump(race);
+        return;
+      }
+      if (e.code === "Space" || e.code === "KeyP") {
         e.preventDefault();
         race.paused = !race.paused;
         setTick((t) => t + 1);
@@ -129,7 +138,7 @@ function RaceView({
     onDone();
   };
   const changeSpeed = () => {
-    const rates = [1.5, 3, 6];
+    const rates = [3, 6, 12, 24];
     setPlaybackRate(rates[(rates.indexOf(playbackRate) + 1) % rates.length]);
   };
   void tick;
@@ -168,14 +177,43 @@ function RaceView({
       <div className="race-actions">
         <button
           className="secondary speed-button"
-          aria-label={`빨리감기 현재 ${playbackRate}배`}
+          aria-label={`빨리감기 현재 ${playbackRate / DEFAULT_PLAYBACK_RATE}배`}
           onClick={changeSpeed}
         >
-          ⏩ 빨리감기 <b>{playbackRate}×</b>
+          ⏩ 빨리감기{" "}
+          <b>
+            {playbackRate === DEFAULT_PLAYBACK_RATE
+              ? "기본"
+              : playbackRate / DEFAULT_PLAYBACK_RATE + "×"}
+          </b>
         </button>
         <button className="primary result-shortcut" onClick={showResults}>
           결과보기 →
         </button>
+      </div>
+      <div className="race-status-line">
+        <span>기본 3배 · 현재 {playbackRate}배 진행</span>
+        {race.course === "hills" && (
+          <strong data-testid="terrain-status">
+            {terrainAt(race.course, p.distance).grade > 0.03
+              ? "↗ 오르막"
+              : terrainAt(race.course, p.distance).grade < -0.03
+                ? "↘ 내리막"
+                : "— 평지"}{" "}
+            {Math.abs(terrainAt(race.course, p.distance).grade) > 0.03
+              ? Math.round(
+                  Math.abs(terrainAt(race.course, p.distance).grade) * 100,
+                ) + "%"
+              : ""}
+          </strong>
+        )}
+        {race.course === "hurdles" && (
+          <strong data-testid="jump-status">
+            {p.jumpHeight > 0
+              ? "↑ 점프 중"
+              : `장애물 충돌 ${p.obstacleHits.length}회`}
+          </strong>
+        )}
       </div>
       <div className="race-hud">
         <div>
@@ -210,7 +248,7 @@ function RaceView({
       <div className="track-wrap">
         <canvas
           ref={canvas}
-          className="race-canvas"
+          className={`race-canvas ${["hills", "hurdles"].includes(race.course) ? "terrain-canvas" : ""}`}
           aria-label="4마리 뱀의 100m 경주"
         />
         {race.countdown > 0 && !race.paused && (
@@ -233,6 +271,25 @@ function RaceView({
           </div>
           <progress max="100" value={p.distance} />
         </div>
+        {race.course === "hurdles" && race.mode === "manual" && (
+          <button
+            className="jump-button"
+            disabled={
+              race.paused ||
+              race.countdown > 0 ||
+              p.finish !== null ||
+              p.jumpHeight > 0
+            }
+            onClick={() => jump(race)}
+          >
+            ↑ 점프 <small>SPACE · W · ↑</small>
+          </button>
+        )}
+        {race.course === "hurdles" && race.mode === "auto" && (
+          <p className="jump-hint">
+            자동으로 점프해요. 부딪히면 속도가 줄어요!
+          </p>
+        )}
         {race.mode === "auto" ? (
           <p className="spectator">
             빨리감기로 빠르게 보거나 결과보기로 바로 확인할 수 있어요.
@@ -519,7 +576,7 @@ export default function App() {
           }}
         >
           <span className="brand-mark">〰</span>꼬물 레이스
-          <span className="version">v0.4</span>
+          <span className="version">v0.5</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">
@@ -544,17 +601,17 @@ export default function App() {
               친구의 실제 경기를 재생해 같은 조건으로 대결해요.
               <br />내 뱀을 골라 기록에 도전해 보세요!
             </p>
-            <div className="challenge-my-racer">
-              <label>
-                내 선수{" "}
-                {saved.snakes.length > 0 && (
+            {saved.snakes.length > 0 ? (
+              <div className="challenge-my-racer">
+                <label>
+                  도전할 내 뱀
                   <select
                     aria-label="도전할 내 뱀"
                     value={snake.id}
                     onChange={(e) =>
                       setSnake(
                         saved.snakes.find((s) => s.id === e.target.value) ||
-                          snake,
+                          saved.snakes[0],
                       )
                     }
                   >
@@ -564,17 +621,31 @@ export default function App() {
                       </option>
                     ))}
                   </select>
-                )}
-              </label>
-              <Preview snake={snake} />
-              <b>{snake.name}</b>
-            </div>
-            <div className="center-actions">
-              <button className="primary" onClick={() => prepare()}>
-                이 뱀으로 도전하기 →
+                </label>
+                <Preview snake={snake} />
+                <b>{snake.name}</b>
+              </div>
+            ) : (
+              <p className="empty-own-racer">
+                아직 저장한 내 뱀이 없어요.
+                <br />새 뱀을 그린 뒤 바로 도전할 수 있어요.
+              </p>
+            )}
+            <div className="challenge-paths">
+              <button
+                className="primary"
+                disabled={!saved.snakes.length}
+                onClick={() =>
+                  prepare(
+                    saved.snakes.find((s) => s.id === snake.id) ||
+                      saved.snakes[0],
+                  )
+                }
+              >
+                내 뱀으로 도전하기 →<small>저장한 뱀을 골라 경기 준비</small>
               </button>
               <button className="secondary" onClick={() => edit(true)}>
-                새 뱀 그리기
+                ✎ 내 뱀 그리기<small>머리·몸통·꼬리를 그리고 바로 도전</small>
               </button>
             </div>
             <button className="text-button" onClick={leaveChallenge}>
@@ -630,6 +701,12 @@ export default function App() {
               </div>
             </section>
           </section>
+        )}
+        {page === "draw" && incoming && (
+          <div className="challenge-banner">
+            <b>{incoming.snake.name}에게 도전할 내 뱀을 그려주세요!</b>
+            <span>조립 후 같은 코스로 바로 연결돼요.</span>
+          </div>
         )}
         {page === "draw" && (
           <Workshop
@@ -731,10 +808,11 @@ export default function App() {
                 </div>
                 <p className="record-rule-note">
                   최고 기록은 현재 체형 규칙 기준이에요.
-                  {best(saved, snake.id, mode, "legacy", course) !== null && (
+                  {previousRulesBest(saved, snake.id, mode, course) !==
+                    null && (
                     <span>
                       이전 규칙 최고:{" "}
-                      {fmt(best(saved, snake.id, mode, "legacy", course))}
+                      {fmt(previousRulesBest(saved, snake.id, mode, course))}
                     </span>
                   )}
                 </p>
@@ -743,6 +821,28 @@ export default function App() {
                 <h3>
                   <span>01</span> 어떤 레이스를 달릴까요?
                 </h3>
+                {course === "hills" && (
+                  <div className="hill-preview">
+                    <svg
+                      viewBox="0 0 360 76"
+                      role="img"
+                      aria-label="가파른 언덕 두 개"
+                    >
+                      <path
+                        d="M0 66 L40 66 C65 66 75 10 105 10 S145 66 170 66 L190 66 C215 66 225 22 250 22 S285 66 310 66 L360 66"
+                        fill="none"
+                        stroke="#7c9854"
+                        strokeWidth="7"
+                      />
+                      <path
+                        d="M0 70 H360"
+                        stroke="#c3cdad"
+                        strokeDasharray="4 4"
+                      />
+                    </svg>
+                    <span>첫 언덕 최대 42% · 두 번째 언덕 최대 36%</span>
+                  </div>
+                )}
                 <div className="course-options">
                   {COURSES.map((c) => (
                     <button
@@ -821,7 +921,7 @@ export default function App() {
                     {mode === "auto" ? "자동" : "수동"} 달리기
                   </span>
                   <button className="primary start-button" onClick={start}>
-                    경주 시작 <span>→</span>
+                    {incoming ? "도전 시작" : "경주 시작"} <span>→</span>
                   </button>
                 </div>
               </div>

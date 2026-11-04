@@ -17,7 +17,7 @@ export type Snake = {
   createdAt: number;
 };
 export type Mode = "auto" | "manual";
-export const RULES_VERSION = "morphology-v1";
+export const RULES_VERSION = "morphology-v2";
 export type Stats = {
   frontalArea: number;
   dragCoefficient: number;
@@ -27,6 +27,8 @@ export type Stats = {
   efficiency: number;
   energyCapacity: number;
   traction: number;
+  headReach: number;
+  tailReach: number;
   size: number;
   thickness: number;
   stability: number;
@@ -171,6 +173,8 @@ export function analyze(s: Snake): Stats {
     thickness,
     headLoad,
     ...vehicle,
+    headReach: Math.min(5, headBounds.w * rig.scale),
+    tailReach: Math.min(5, tailBounds.w * rig.scale),
     amplitude: clamp(0.2 + curve * 0.04 + flex * 0.02, 0.2, 0.38),
     frequency: clamp(1.85 - length * 0.065 + flex * 0.15, 1.2, 1.95),
   };
