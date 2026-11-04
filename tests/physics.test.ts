@@ -129,7 +129,7 @@ test("saved drawing validation rejects corrupt and excessive data", () => {
   assert.equal(validSnake(s), false);
 });
 
-import { bodyRig, skinPoint, eraseStrokes } from "../src/geometry";
+import { snakeRig, bodyRig, skinPoint, eraseStrokes } from "../src/geometry";
 test("source-path rig preserves every drawn point at rest, including loops", () => {
   const s = sampleSnake();
   const points = Array.from({ length: 101 }, (_, i) => ({
@@ -431,7 +431,9 @@ test("automatic racers attempt every hurdle; actual bulky body clearance can cau
     assert.equal(new Set(r.obstacleHits).size, r.obstacleHits.length);
   }
   assert.equal(race.racers[0].obstacleHits.length, 0);
-  assert.ok(race.racers[2].obstacleHits.length > 0);
+  const bulky = createRace(sampleSnake(2), "auto", "hurdles");
+  finishRace(bulky);
+  assert.ok(bulky.racers[0].obstacleHits.length > 0);
 });
 test("manual jump obeys gravity, prevents double jump and freezes with pause", () => {
   const race = createRace(sampleSnake(), "manual", "hurdles");
@@ -509,6 +511,7 @@ test("changed morphology rules require new challenges on every course", async ()
   ))!;
   assert.equal(validChallenge({ ...invite, rules: "morphology-v1" }), false);
   assert.equal(validChallenge({ ...invite, rules: "morphology-v2" }), false);
+  assert.equal(validChallenge({ ...invite, rules: "morphology-v3" }), false);
   assert.equal(
     validChallenge({ ...invite, rules: "morphology-v1", course: "hills" }),
     false,
@@ -637,7 +640,7 @@ import { partFrame } from "../src/geometry";
 test("heads keep facing forward on angular and bulky CPU bodies without moving their attachment", () => {
   for (let index = 0; index < 4; index++) {
     const snake = sampleSnake(index),
-      rig = bodyRig(snake.parts.body),
+      rig = snakeRig(snake),
       race = createRace(snake, "auto");
     for (let frame = 0; frame < 300; frame++) {
       stepRace(race);
@@ -649,3 +652,47 @@ test("heads keep facing forward on angular and bulky CPU bodies without moving t
     }
   }
 });
+
+test("oversized drawings fit the shared race class without rewriting original ink or anchors", () => {
+  const snake = sampleSnake();
+  for (const part of Object.values(snake.parts)) {
+    for (const stroke of part.strokes) {
+      stroke.points = stroke.points.map((p) => ({ x: p.x * 3, y: p.y * 3 }));
+      stroke.width = Math.min(40, stroke.width * 3);
+    }
+    part.anchor = { x: part.anchor.x * 3, y: part.anchor.y * 3 };
+  }
+  const original = JSON.stringify(snake),
+    r = createRacer(snake),
+    bounds = snakeExtents({ ...r, nodes: r.rest });
+  assert.ok(bounds.w <= 6.6);
+  assert.ok(bounds.h <= 1.8);
+  assert.ok(r.stats.mass < 3);
+  assert.equal(JSON.stringify(snake), original);
+  const raw = bodyRig(snake.parts.body),
+    fit = snakeRig(snake),
+    factor = fit.scale / raw.scale;
+  for (let i = 0; i < raw.rest.length; i++) {
+    assert.ok(Math.abs(fit.rest[i].x - raw.rest[i].x * factor) < 1e-9);
+    assert.ok(Math.abs(fit.rest[i].y - raw.rest[i].y * factor) < 1e-9);
+  }
+});
+test("NPC equipment matching narrows a slow snake race gap without changing player or friend artwork", () => {
+  const snake = sampleSnake(2),
+    before = JSON.stringify(snake);
+  const race = createRace(snake, "auto", "combined");
+  finishRace(race);
+  const player = race.racers[0].finish!;
+  const unmatched = createRace(sampleSnake(3), "auto", "combined");
+  finishRace(unmatched);
+  assert.ok(
+    Math.abs(player - race.racers[3].finish!) <
+      Math.abs(player - unmatched.racers[0].finish!),
+  );
+  for (const r of race.racers)
+    assert.ok(r.finish !== null && r.finish > player * 0.8);
+  assert.ok(new Set(race.racers.map((r) => r.finish)).size > 1);
+  assert.equal(JSON.stringify(snake), before);
+});
+
+import { snakeExtents } from "../src/render";

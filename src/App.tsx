@@ -19,6 +19,7 @@ import {
   RULES_VERSION,
   drawing,
   sampleSnake,
+  matchedOpponents,
   type Drawing,
   type Mode,
   type PartName,
@@ -609,7 +610,7 @@ export default function App() {
           }}
         >
           <span className="brand-mark">〰</span>꼬물 레이스
-          <span className="version">v0.6.1</span>
+          <span className="version">v0.7</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">
@@ -915,12 +916,16 @@ export default function App() {
                 <h3>
                   <span>02</span> 오늘의 출전 선수
                 </h3>
+                <p className="class-note">
+                  전체 크기 자동 보정 · 내 뱀과 비슷한 기본 능력의 NPC가
+                  출전해요. 친구의 뱀·기록은 그대로예요.
+                </p>
                 <div className="competitors">
                   {[
                     snake,
                     ...(incoming
-                      ? [incoming.snake, ...[2, 3].map(sampleSnake)]
-                      : [1, 2, 3].map(sampleSnake)),
+                      ? [incoming.snake, ...matchedOpponents(snake).slice(1)]
+                      : matchedOpponents(snake)),
                   ].map((s, i) => (
                     <div key={i}>
                       <Preview snake={s} />

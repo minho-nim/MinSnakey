@@ -5,7 +5,7 @@ import {
   HILL_VISUAL_RATIO,
   JUMP_VISUAL_RATIO,
 } from "./courses";
-import { bodyRig, skinPoint, partFrame } from "./geometry";
+import { snakeRig, skinPoint, partFrame } from "./geometry";
 import { bounds, clamp, type Drawing, type Point } from "./model";
 import { previewRacer, type Racer, type Race } from "./physics";
 export function fitCanvas(canvas: HTMLCanvasElement) {
@@ -57,7 +57,7 @@ export function drawSnake(
   scale: number,
 ) {
   const body = r.snake.parts.body,
-    rig = bodyRig(body);
+    rig = snakeRig(r.snake);
   body.strokes.forEach((stroke, strokeIndex) => {
     const points = stroke.points.map((_, i) =>
       skinPoint(rig.bindings[strokeIndex][i], r.nodes, rig.scale),
@@ -94,7 +94,7 @@ export function drawSnake(
   part("head");
 }
 export function snakeExtents(r: Racer) {
-  const rig = bodyRig(r.snake.parts.body),
+  const rig = snakeRig(r.snake),
     points: Point[] = [];
   rig.bindings.forEach((a) =>
     a.forEach((b) => points.push(skinPoint(b, r.nodes, rig.scale))),

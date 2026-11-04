@@ -16,6 +16,11 @@ export default function AbilityPanel({
         <b>체형 능력치</b>
         <span>{bodyType(stats)}</span>
       </div>
+      {!compact && (
+        <p className="class-note">
+          그림 비율을 유지해 경기 체급에 자동으로 맞췄어요.
+        </p>
+      )}
       <div className="morphology-values">
         <span>
           길이 <b>{(stats.length * 100).toFixed(0)}cm</b>

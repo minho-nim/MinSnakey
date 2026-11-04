@@ -1,7 +1,7 @@
 import { decode, encode } from "fast-png";
 import atlasData from "./generated/font-atlas.json";
 import { previewRacer } from "../src/physics";
-import { bodyRig, skinPoint, partFrame } from "../src/geometry";
+import { snakeRig, skinPoint, partFrame } from "../src/geometry";
 import { snakeExtents } from "../src/render";
 import { courseInfo } from "../src/courses";
 import { TAUNTS } from "../src/share-copy";
@@ -112,7 +112,7 @@ export function renderCard(challenge: Challenge) {
   text(challenge.targetTime.toFixed(2) + "초", 910, 109, 67, dark);
   text(courseInfo(challenge.course).name, 910, 195, 24, dark);
   const racer = previewRacer(challenge.snake, 0.65),
-    rig = bodyRig(challenge.snake.parts.body),
+    rig = snakeRig(challenge.snake),
     bounds = snakeExtents(racer),
     scale = Math.min(980 / Math.max(1, bounds.w), 184 / Math.max(1, bounds.h));
   const ox = 600 - (bounds.x + bounds.w / 2) * scale,
