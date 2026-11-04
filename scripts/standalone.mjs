@@ -12,5 +12,10 @@ html = html.replace(
     `<script type="module">${jsText.replaceAll("</script", "<\\/script")}</script>`,
 );
 html = html.replace(css[0], () => `<style>${cssText}</style>`);
+for (const path of ["icons/icon-32.png", "icons/apple-touch-icon.png"]) {
+  const data = (await readFile(new URL(path, root))).toString("base64");
+  html = html.replaceAll("./" + path, "data:image/png;base64," + data);
+}
+html = html.replace(/<link[^>]+rel="manifest"[^>]*>/g, "");
 await writeFile(new URL("play.html", root), html);
 console.log("Offline standalone game: dist/play.html");

@@ -1,3 +1,4 @@
+import Brand from "./Brand";
 import { drawingConnection, snakeConnections } from "./connectivity";
 import { abilityScore } from "./abilities";
 import AbilityPanel from "./AbilityPanel";
@@ -306,8 +307,7 @@ export default function Workshop({
       <div className="arcade-title">
         <span className="mini-title">내 낙서가 진짜 달린다!</span>
         <h1>
-          Min<span>Snakey</span>
-          <i>〰</i>
+          <Brand large />
         </h1>
       </div>
       <nav className="part-tabs" aria-label="그리기 단계">

@@ -1,3 +1,4 @@
+import Brand from "./Brand";
 import { snakeConnections } from "./connectivity";
 import { TAUNTS } from "./share-copy";
 import {
@@ -620,8 +621,8 @@ export default function App() {
             setPage("home");
           }}
         >
-          <span className="brand-mark">〰</span>MinSnakey
-          <span className="version">v0.7.3</span>
+          <Brand />
+          <span className="version">v0.7.4</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">
@@ -708,8 +709,7 @@ export default function App() {
             <div className="arcade-title">
               <span className="mini-title">내 낙서가 진짜 달린다!</span>
               <h1>
-                Min<span>Snakey</span>
-                <i>〰</i>
+                <Brand large />
               </h1>
             </div>
             <div className="lobby-paper">
@@ -1172,7 +1172,7 @@ export default function App() {
         )}
       </main>
       <footer>
-        <span>〰 MinSnakey</span>
+        <Brand />
         <p>작은 낙서의 커다란 레이스.</p>
         <small>로그인 없이 · 외부 AI 없이 · 내 기기에만 저장</small>
       </footer>

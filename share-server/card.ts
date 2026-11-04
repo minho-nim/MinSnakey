@@ -1,3 +1,4 @@
+import logoData from "./generated/logo.json";
 import { decode, encode } from "fast-png";
 import atlasData from "./generated/font-atlas.json";
 import { previewRacer } from "../src/physics";
@@ -13,6 +14,9 @@ const atlas = decode(
   Uint8Array.from(atob(atlasData.png), (c) => c.charCodeAt(0)),
 );
 const fontPixels = atlas.data as Uint8Array;
+const logo = decode(
+  Uint8Array.from(atob(logoData.png), (c) => c.charCodeAt(0)),
+);
 const glyphs = atlasData.glyphs as Record<
   string,
   { x: number; y: number; w: number; h: number; advance: number }
@@ -103,7 +107,20 @@ export function renderCard(challenge: Challenge) {
   rect(14, 14, 1172, 602, cream, 28);
   rect(43, 260, 1114, 246, [228, 209, 169], 21);
   for (let y = 315; y < 506; y += 78) rect(44, y, 1112, 3, [255, 248, 225]);
-  text("MinSnakey · 친구 도전", 60, 25, 27, dark);
+  for (let y = 0; y < 46; y++)
+    for (let x = 0; x < 46; x++) {
+      const offset =
+        (Math.floor((y * logo.height) / 46) * logo.width +
+          Math.floor((x * logo.width) / 46)) *
+        4;
+      blend(
+        43 + x,
+        22 + y,
+        [logo.data[offset], logo.data[offset + 1], logo.data[offset + 2]],
+        logo.data[offset + 3] / 255,
+      );
+    }
+  text("MinSnakey · 친구 도전", 102, 25, 27, dark);
   const taunt = TAUNTS[challenge.taunt ?? 0];
   text(taunt.title, 58, 68, 112, [197, 120, 44]);
   text(taunt.subtitle, 65, 198, 42, dark);

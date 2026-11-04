@@ -3250,3 +3250,70 @@ meter::-webkit-meter-optimum-value {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  vertical-align: middle;
+}
+.brand-logo {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 23%;
+  flex: none;
+}
+.brand-wordmark {
+  font-weight: 900;
+  letter-spacing: -0.7px;
+  white-space: nowrap;
+}
+.brand-wordmark > span {
+  color: #318960;
+}
+.arcade-title h1 > .brand-lockup {
+  color: inherit;
+}
+.brand-lockup-large {
+  gap: 12px;
+}
+.brand-lockup-large .brand-logo {
+  width: 66px;
+  height: 66px;
+}
+.brand-lockup-large .brand-wordmark > span {
+  color: #f2ca56;
+}
+.arcade-title h1 {
+  transform: none;
+  letter-spacing: -1.5px;
+}
+.brand .brand-logo {
+  width: 30px;
+  height: 30px;
+}
+.game-shell footer .brand-logo {
+  width: 27px;
+  height: 27px;
+}
+.game-shell footer .brand-wordmark > span {
+  color: #b3cca1;
+}
+@media (max-width: 450px) {
+  .brand-lockup-large {
+    gap: 9px;
+  }
+  .brand-lockup-large .brand-logo {
+    width: 52px;
+    height: 52px;
+  }
+  .arcade-title h1 {
+    font-size: 34px;
+  }
+  .brand .brand-logo {
+    width: 27px;
+    height: 27px;
+  }
+}
