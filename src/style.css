@@ -3103,3 +3103,130 @@ meter::-webkit-meter-optimum-value {
     font-size: 23px;
   }
 }
+.taunt-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: #697e47;
+  margin-bottom: 14px;
+}
+.taunt-picker select {
+  width: 100%;
+  min-height: 46px;
+  border: 2px solid #b5c59a;
+  border-radius: 9px;
+  background: #fff9e6;
+  color: #485f35;
+  padding: 10px;
+  font-size: 12px;
+}
+.social-card-preview {
+  width: 100%;
+  background: #e4eacb;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #516b3b;
+}
+.social-card-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1200/630;
+}
+.challenge-page h1.challenge-taunt {
+  font-size: 42px;
+  color: #b77a2f;
+  letter-spacing: -1.5px;
+  margin: 12px 0 8px;
+}
+.taunt-subtitle {
+  font-size: 17px;
+  font-weight: 800;
+  color: #536c3c;
+}
+.stamina-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 600px;
+  margin: 14px auto 0;
+  font-size: 10px;
+  color: #7c8e63;
+}
+.stamina-display > span {
+  min-width: 87px;
+  text-align: left;
+}
+.stamina-display b {
+  color: #536d39;
+}
+.stamina-display progress {
+  flex: 1;
+  height: 6px;
+  border: 0;
+  appearance: none;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.stamina-display progress::-webkit-progress-bar {
+  background: #e2e7cf;
+}
+.stamina-display progress::-webkit-progress-value {
+  background: #cda356;
+}
+.stamina-display progress::-moz-progress-bar {
+  background: #cda356;
+}
+@media (max-width: 650px) {
+  .challenge-page h1.challenge-taunt {
+    font-size: 37px;
+  }
+  .taunt-subtitle {
+    font-size: 15px;
+  }
+  .taunt-picker select {
+    font-size: 11px;
+  }
+  .stamina-display {
+    gap: 8px;
+    font-size: 9px;
+  }
+  .stamina-display > span {
+    min-width: 78px;
+  }
+}
+.main-course {
+  border: 3px solid #bc8c31 !important;
+  background: #fff0c4 !important;
+  grid-column: 1/-1;
+}
+.main-course b {
+  font-size: 20px;
+}
+.combined-preview {
+  padding: 16px;
+  margin-bottom: 14px;
+  border: 2px solid #b69142;
+  border-radius: 12px;
+  background: #fff0ca;
+  color: #415631;
+}
+.combined-preview p {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.combined-preview small {
+  font-size: 11px;
+  line-height: 1.8;
+}
+.water-status {
+  color: #bce5e8;
+  text-align: center;
+  font-size: 12px;
+}
+.race-status-line {
+  flex-wrap: wrap;
+}

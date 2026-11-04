@@ -1,5 +1,16 @@
-import { readChallenge, challengeLink, type Challenge } from "./challenge";
-import { COURSES, courseInfo, terrainAt, type CourseId } from "./courses";
+import { TAUNTS } from "./share-copy";
+import {
+  readChallenge,
+  socialChallengeURLs,
+  type Challenge,
+} from "./challenge";
+import {
+  COURSES,
+  courseInfo,
+  terrainAt,
+  obstaclesFor,
+  type CourseId,
+} from "./courses";
 import AbilityPanel from "./AbilityPanel";
 import Workshop from "./Workshop";
 import { useEffect, useRef, useState } from "react";
@@ -104,7 +115,7 @@ function RaceView({
           propel(race, ["a", "A", "ArrowLeft"].includes(e.key) ? -1 : 1);
       }
       if (
-        race.course === "hurdles" &&
+        obstaclesFor(race.course).length > 0 &&
         ["Space", "ArrowUp", "KeyW"].includes(e.code)
       ) {
         e.preventDefault();
@@ -193,7 +204,7 @@ function RaceView({
       </div>
       <div className="race-status-line">
         <span>기본 3배 · 현재 {playbackRate}배 진행</span>
-        {race.course === "hills" && (
+        {["combined", "hills"].includes(race.course) && (
           <strong data-testid="terrain-status">
             {terrainAt(race.course, p.distance).grade > 0.03
               ? "↗ 오르막"
@@ -207,14 +218,21 @@ function RaceView({
               : ""}
           </strong>
         )}
-        {race.course === "hurdles" && (
+        {obstaclesFor(race.course).length > 0 && (
           <strong data-testid="jump-status">
-            {p.jumpHeight > 0
-              ? "↑ 점프 중"
-              : `장애물 충돌 ${p.obstacleHits.length}회`}
+            {race.time < p.stumbleUntil
+              ? "앗! 넘어짐 · 속도 감소"
+              : p.jumpHeight > 0
+                ? "↑ 점프 중"
+                : `장애물 충돌 ${p.obstacleHits.length}회`}
           </strong>
         )}
       </div>
+      {terrainAt(race.course, p.distance).waterDepth > 0 && (
+        <p className="water-status">
+          ≈ 물속 · 잠긴 면적 × 속도²에 따른 수중 저항
+        </p>
+      )}
       <div className="race-hud">
         <div>
           <small>경기 시간</small>
@@ -248,7 +266,7 @@ function RaceView({
       <div className="track-wrap">
         <canvas
           ref={canvas}
-          className={`race-canvas ${["hills", "hurdles"].includes(race.course) ? "terrain-canvas" : ""}`}
+          className={`race-canvas ${["combined", "hills", "hurdles"].includes(race.course) ? "terrain-canvas" : ""}`}
           aria-label="4마리 뱀의 100m 경주"
         />
         {race.countdown > 0 && !race.paused && (
@@ -271,7 +289,18 @@ function RaceView({
           </div>
           <progress max="100" value={p.distance} />
         </div>
-        {race.course === "hurdles" && race.mode === "manual" && (
+        <div className="stamina-display">
+          <span>
+            추진 체력{" "}
+            <b>{Math.round(Math.max(0, (p.energy - 0.55) / 0.45) * 100)}%</b>
+          </span>
+          <progress
+            aria-label="남은 추진 체력"
+            value={Math.max(0, (p.energy - 0.55) / 0.45)}
+            max="1"
+          />
+        </div>
+        {obstaclesFor(race.course).length > 0 && race.mode === "manual" && (
           <button
             className="jump-button"
             disabled={
@@ -285,7 +314,7 @@ function RaceView({
             ↑ 점프 <small>SPACE · W · ↑</small>
           </button>
         )}
-        {race.course === "hurdles" && race.mode === "auto" && (
+        {obstaclesFor(race.course).length > 0 && race.mode === "auto" && (
           <p className="jump-hint">
             자동으로 점프해요. 부딪히면 속도가 줄어요!
           </p>
@@ -398,12 +427,14 @@ export default function App() {
     ),
     [step, setStep] = useState(0),
     [mode, setMode] = useState<Mode>("auto"),
-    [course, setCourse] = useState<CourseId>("sprint"),
+    [course, setCourse] = useState<CourseId>("combined"),
     [notice, setNotice] = useState(""),
     [race, setRace] = useState<Race | null>(null),
     [previousBest, setPreviousBest] = useState<number | null>(null),
     [incoming, setIncoming] = useState<Challenge | null>(null),
     [shareURL, setShareURL] = useState(""),
+    [sharePreview, setSharePreview] = useState(""),
+    [taunt, setTaunt] = useState(0),
     [sharing, setSharing] = useState(false);
   const [editParts, setEditParts] = useState<Record<PartName, Drawing>>(
       load().snakes[0]?.parts || {
@@ -463,7 +494,9 @@ export default function App() {
       const base = location.hostname.endsWith(".chatgpt.site")
         ? "https://minho-nim.github.io/snake-race/"
         : location.href;
-      setShareURL(await challengeLink(race, base));
+      const urls = await socialChallengeURLs(race, base, taunt);
+      setShareURL(urls.share);
+      setSharePreview(urls.image);
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "도전 링크를 만들지 못했어요.",
@@ -576,7 +609,7 @@ export default function App() {
           }}
         >
           <span className="brand-mark">〰</span>꼬물 레이스
-          <span className="version">v0.5</span>
+          <span className="version">v0.6</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">
@@ -586,8 +619,13 @@ export default function App() {
       <main>
         {page === "challenge" && incoming && (
           <section className="challenge-page">
-            <span className="eyebrow">FRIEND CHALLENGE</span>
-            <h1>도전장이 도착했어요!</h1>
+            <span className="eyebrow">도전장이 도착했어요!</span>
+            <h1 className="challenge-taunt">
+              {TAUNTS[incoming.taunt ?? 0].title}
+            </h1>
+            <p className="taunt-subtitle">
+              {TAUNTS[incoming.taunt ?? 0].subtitle}
+            </p>
             <div className="challenge-opponent">
               <Preview snake={incoming.snake} />
               <h2>{incoming.snake.name}</h2>
@@ -821,6 +859,19 @@ export default function App() {
                 <h3>
                   <span>01</span> 어떤 레이스를 달릴까요?
                 </h3>
+                {course === "combined" && (
+                  <div className="combined-preview">
+                    <b>★ 메인 · 종합경기 100m</b>
+                    <p>
+                      0–20m 출발 가속 → 20–42m 언덕 → 50–72m 물웅덩이 → 80·92m
+                      점프
+                    </p>
+                    <small>
+                      가벼움의 가속 · 긴 몸의 출력과 지구력 · 큰 체격의 무게와
+                      저항, 모든 구간의 합으로 승부!
+                    </small>
+                  </div>
+                )}
                 {course === "hills" && (
                   <div className="hill-preview">
                     <svg
@@ -847,7 +898,7 @@ export default function App() {
                   {COURSES.map((c) => (
                     <button
                       key={c.id}
-                      className={`course ${course === c.id ? "selected" : ""}`}
+                      className={`course ${c.id === "combined" ? "main-course" : ""} ${course === c.id ? "selected" : ""}`}
                       aria-pressed={course === c.id}
                       disabled={!!incoming}
                       onClick={() => setCourse(c.id)}
@@ -1018,6 +1069,25 @@ export default function App() {
             )}
             {race.racers[0].finish !== null && (
               <div className="share-challenge">
+                <label className="taunt-picker">
+                  친구에게 한마디
+                  <select
+                    aria-label="도전 문구"
+                    value={taunt}
+                    onChange={(e) => {
+                      setTaunt(+e.target.value);
+                      setShareURL("");
+                      setSharePreview("");
+                    }}
+                  >
+                    {TAUNTS.map((t, i) => (
+                      <option key={t.title} value={i}>
+                        {t.title} {t.subtitle}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
                 <button
                   className="primary"
                   disabled={sharing}
@@ -1027,6 +1097,13 @@ export default function App() {
                 </button>
                 {shareURL && (
                   <div className="share-link-box">
+                    <div className="social-card-preview">
+                      <img
+                        src={sharePreview}
+                        alt="내 뱀과 도발 문구가 담긴 공유 썸네일"
+                      />
+                    </div>
+
                     <label>
                       친구에게 보낼 도전 링크
                       <input
@@ -1039,7 +1116,10 @@ export default function App() {
                     <button className="secondary" onClick={copyChallenge}>
                       링크 복사
                     </button>
-                    <p>친구가 링크로 들어오면 도전하기 화면이 열려요.</p>
+                    <p>
+                      이 링크를 카톡에 붙이면 내 뱀과 도전 문구가 썸네일로
+                      보여요. 누르면 GitHub 게임의 도전 화면으로 이동해요.
+                    </p>
                   </div>
                 )}
               </div>

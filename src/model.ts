@@ -17,7 +17,7 @@ export type Snake = {
   createdAt: number;
 };
 export type Mode = "auto" | "manual";
-export const RULES_VERSION = "morphology-v2";
+export const RULES_VERSION = "morphology-v3";
 export type Stats = {
   frontalArea: number;
   dragCoefficient: number;
@@ -130,20 +130,20 @@ export function analyze(s: Snake): Stats {
     inkArea(s.parts.head.strokes) +
     inkArea(s.parts.tail.strokes);
   const mass = clamp(
-    0.5 + ink / 16000 + Math.min(headArea + tailArea, 12) * 0.075,
-    0.65,
-    4.5,
+    0.4 + (ink / 10500) ** 1.35 + Math.min(headArea + tailArea, 12) * 0.13,
+    0.45,
+    7.5,
   );
   // Size is occupied body bulk, not body length a second time.
   const size = clamp(
     thickness +
-      Math.sqrt(headArea) * 0.45 +
+      Math.sqrt(headArea) * 0.55 +
       Math.min(bodyBounds.h * rig.scale, 2) * 0.15,
     0.08,
     2.5,
   );
   const long = clamp((length - 1.5) / 5, 0, 1),
-    weight = clamp((mass - 0.65) / 3.85, 0, 1),
+    weight = clamp((mass - 0.45) / 7.05, 0, 1),
     bulk = clamp((size - 0.08) / 1.52, 0, 1);
   const headLoad = clamp(
     headArea / Math.max(0.1, length * thickness + 0.1),

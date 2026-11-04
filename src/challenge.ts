@@ -1,3 +1,4 @@
+import { TAUNTS, SHARE_ORIGIN } from "./share-copy";
 import { RULES_VERSION, type Snake, type Mode } from "./model";
 import type { CourseId } from "./courses";
 import { validSnake } from "./storage";
@@ -10,6 +11,7 @@ export type ReplayInput = {
 };
 export type Challenge = {
   v: 1;
+  taunt?: number;
   rules: string;
   snake: Snake;
   course: CourseId;
@@ -52,11 +54,15 @@ export function validChallenge(value: unknown): value is Challenge {
     let last = -1;
     return (
       c.v === 1 &&
-      (c.rules === RULES_VERSION ||
-        (c.rules === "morphology-v1" &&
-          ["sprint", "puddles"].includes(c.course))) &&
+      (c.taunt === undefined ||
+        (Number.isInteger(c.taunt) &&
+          c.taunt >= 0 &&
+          c.taunt < TAUNTS.length)) &&
+      c.rules === RULES_VERSION &&
       validSnake(c.snake) &&
-      ["sprint", "hills", "puddles", "hurdles"].includes(c.course) &&
+      ["combined", "sprint", "hills", "puddles", "hurdles"].includes(
+        c.course,
+      ) &&
       ["auto", "manual"].includes(c.mode) &&
       Number.isFinite(c.targetTime) &&
       c.targetTime > 0 &&
@@ -85,12 +91,13 @@ export function validChallenge(value: unknown): value is Challenge {
     return false;
   }
 }
-export async function challengeLink(race: Race, base: string) {
+export async function challengeLink(race: Race, base: string, taunt = 0) {
   const r = race.racers[0];
   if (r.finish === null)
     throw new Error("먼저 완주한 뒤 도전장을 보낼 수 있어요.");
   const challenge: Challenge = {
     v: 1,
+    taunt,
     rules: RULES_VERSION,
     snake: r.snake,
     course: race.course,
@@ -143,4 +150,17 @@ export async function readChallenge(hash: string): Promise<Challenge | null> {
       "도전장을 열지 못했어요. 현재 규칙으로 새 링크를 받아주세요.",
     );
   }
+}
+
+export async function socialChallengeURLs(race: Race, base: string, taunt = 0) {
+  const game = await challengeLink(race, base, taunt),
+    gameURL = new URL(game);
+  const origin = ["localhost", "127.0.0.1"].includes(gameURL.hostname)
+    ? gameURL.origin
+    : SHARE_ORIGIN;
+  const share = new URL("/c", origin),
+    image = new URL("/og.png", origin);
+  share.searchParams.set("d", gameURL.hash.slice(11));
+  image.searchParams.set("d", gameURL.hash.slice(11));
+  return { share: share.href, image: image.href, game };
 }

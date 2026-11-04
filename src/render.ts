@@ -1,7 +1,7 @@
 import {
   terrainAt,
-  WATER_ZONES,
-  OBSTACLES,
+  waterZonesFor,
+  obstaclesFor,
   HILL_VISUAL_RATIO,
   JUMP_VISUAL_RATIO,
 } from "./courses";
@@ -194,7 +194,7 @@ export function renderRace(
   const { ctx, w, h } = fitCanvas(canvas),
     laneH = (h - 46) / 4,
     scale = trackScale(race, camera, w, h);
-  const terrainCourse = ["hills", "hurdles"].includes(race.course);
+  const terrainCourse = ["combined", "hills", "hurdles"].includes(race.course);
   const baseline = terrainCourse ? 0.76 : 0.56;
   const player = race.racers[0],
     desired =
@@ -228,47 +228,45 @@ export function renderRace(
     ctx.lineTo(0, groundY(0, bottom));
     ctx.closePath();
     ctx.fill();
-    if (race.course === "puddles")
-      for (const zone of WATER_ZONES) {
-        const left = sx(zone.start),
-          width = (zone.end - zone.start) * scale;
-        if (left + width < 0 || left > w) continue;
-        ctx.fillStyle = "#83b9bb";
-        ctx.fillRect(left, top + 2, width, laneH - 4);
-        ctx.strokeStyle = "#c4e1d7";
-        ctx.lineWidth = 2;
-        for (let j = 0; j < 3; j++) {
-          ctx.beginPath();
-          ctx.moveTo(left + 8, top + 18 + j * 15);
-          ctx.lineTo(left + width - 8, top + 18 + j * 15);
-          ctx.stroke();
-        }
+    for (const zone of waterZonesFor(race.course)) {
+      const left = sx(zone.start),
+        width = (zone.end - zone.start) * scale;
+      if (left + width < 0 || left > w) continue;
+      ctx.fillStyle = "#83b9bb";
+      ctx.fillRect(left, top + 2, width, laneH - 4);
+      ctx.strokeStyle = "#c4e1d7";
+      ctx.lineWidth = 2;
+      for (let j = 0; j < 3; j++) {
+        ctx.beginPath();
+        ctx.moveTo(left + 8, top + 18 + j * 15);
+        ctx.lineTo(left + width - 8, top + 18 + j * 15);
+        ctx.stroke();
       }
-    if (race.course === "hurdles")
-      OBSTACLES.forEach((ob, index) => {
-        const x = sx(ob.start),
-          width = Math.max(12, (ob.end - ob.start) * scale),
-          height = 12 + ob.height * scale * 0.65,
-          base = 28 + (i + baseline) * laneH + 14;
-        if (x + width < 0 || x > w) return;
-        const hit = race.racers[i].obstacleHits.includes(index);
-        ctx.fillStyle = "#493a2926";
-        ctx.fillRect(x - 5, base, width + 12, 5);
-        ctx.fillStyle = hit ? "#bd6b48" : "#e19b42";
-        ctx.fillRect(x, base - height, width, height);
-        ctx.strokeStyle = "#654d30";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, base - height, width, height);
-        ctx.fillStyle = "#fff3be";
-        ctx.fillRect(x + 2, base - height + 3, width - 4, 5);
-        ctx.strokeStyle = "#866039";
-        for (let j = 6; j < width; j += 12) {
-          ctx.beginPath();
-          ctx.moveTo(x + j, base - 2);
-          ctx.lineTo(x + j + 8, base - height + 10);
-          ctx.stroke();
-        }
-      });
+    }
+    obstaclesFor(race.course).forEach((ob, index) => {
+      const x = sx(ob.start),
+        width = Math.max(12, (ob.end - ob.start) * scale),
+        height = 12 + ob.height * scale * 0.65,
+        base = 28 + (i + baseline) * laneH + 14;
+      if (x + width < 0 || x > w) return;
+      const hit = race.racers[i].obstacleHits.includes(index);
+      ctx.fillStyle = "#493a2926";
+      ctx.fillRect(x - 5, base, width + 12, 5);
+      ctx.fillStyle = hit ? "#bd6b48" : "#e19b42";
+      ctx.fillRect(x, base - height, width, height);
+      ctx.strokeStyle = "#654d30";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, base - height, width, height);
+      ctx.fillStyle = "#fff3be";
+      ctx.fillRect(x + 2, base - height + 3, width - 4, 5);
+      ctx.strokeStyle = "#866039";
+      for (let j = 6; j < width; j += 12) {
+        ctx.beginPath();
+        ctx.moveTo(x + j, base - 2);
+        ctx.lineTo(x + j + 8, base - height + 10);
+        ctx.stroke();
+      }
+    });
     ctx.strokeStyle = "#fffcf2";
     ctx.lineWidth = 2;
     ctx.setLineDash([13, 10]);
@@ -319,21 +317,36 @@ export function renderRace(
       Math.PI * 2,
     );
     ctx.fill();
-    const pose =
-      race.course === "hills"
-        ? {
-            ...r,
-            nodes: r.nodes.map((node) => ({
-              ...node,
-              y:
-                node.y -
-                (terrainAt("hills", r.distance + node.x).elevation -
-                  terrainAt("hills", r.distance).elevation) *
-                  HILL_VISUAL_RATIO,
-            })),
-          }
-        : r;
+    const pose = ["combined", "hills"].includes(race.course)
+      ? {
+          ...r,
+          nodes: r.nodes.map((node) => ({
+            ...node,
+            y:
+              node.y -
+              (terrainAt(race.course, r.distance + node.x).elevation -
+                terrainAt(race.course, r.distance).elevation) *
+                HILL_VISUAL_RATIO,
+          })),
+        }
+      : r;
+    ctx.save();
+    if (race.time < r.stumbleUntil) {
+      const fall = Math.sin(
+        Math.PI * Math.min(1, (r.stumbleUntil - race.time) / 0.7),
+      );
+      ctx.translate(x, y);
+      ctx.rotate(0.85 * fall);
+      ctx.translate(-x, -y);
+    }
     drawSnake(ctx, pose, x, y, scale);
+    ctx.restore();
+    if (race.time < r.stumbleUntil) {
+      ctx.fillStyle = "#a34324";
+      ctx.font = "bold 12px sans-serif";
+      ctx.fillText("앗! 넘어짐", x - 40, y - 28);
+    }
+
     ctx.font = `${i === 0 ? "bold " : ""}11px sans-serif`;
     ctx.fillStyle = "#4d4f3f";
     ctx.textAlign = "center";
