@@ -76,7 +76,7 @@ export function vehicleCharacteristics(shape: VehicleShape) {
     0.018 + (0.018 * thickness) / 0.65 + (0.006 * length) / 6.5 + 0.006 * curve;
   // More body can hold more muscle/energy, with bounded output instead of an
   // unlimited advantage from adding strokes or making the body very long.
-  const drivePower = bound(20 + 3 * length + 8 * thickness, 22, 44),
+  const drivePower = bound(18 + 4.5 * length + 8 * thickness, 24, 52),
     driveForce = drivePower / 3.5;
   const efficiency = (0.76 + (0.24 * flex) / 1.3) * (0.82 + 0.18 * stability);
   const acceleration = bound(
@@ -94,11 +94,11 @@ export function vehicleCharacteristics(shape: VehicleShape) {
     rollingCoefficient,
   );
   const energyCapacity = bound(
-    900 + 180 * length + 350 * thickness,
-    1200,
-    2500,
+    700 + 180 * length * length + 600 * thickness,
+    1000,
+    9500,
   );
-  const stamina = bound(energyCapacity / drivePower / 65, 0.65, 1.5);
+  const stamina = bound(energyCapacity / drivePower / 120, 0.45, 1.8);
   return {
     stability,
     grip,

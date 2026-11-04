@@ -499,15 +499,134 @@ test("manual jump and accelerated input cadence are recorded and reproduced in s
   finishRace(ghost);
   assert.ok(Math.abs(ghost.racers[1].finish! - invite.targetTime) < DT * 2);
 });
-test("old flat challenges remain compatible while changed old hill records require a new link", async () => {
+test("changed morphology rules require new challenges on every course", async () => {
   const race = createRace(sampleSnake(), "auto");
   finishRace(race);
   const invite = (await readChallenge(
     new URL(await challengeLink(race, "https://example.com")).hash,
   ))!;
-  assert.equal(validChallenge({ ...invite, rules: "morphology-v1" }), true);
+  assert.equal(validChallenge({ ...invite, rules: "morphology-v1" }), false);
+  assert.equal(validChallenge({ ...invite, rules: "morphology-v2" }), false);
   assert.equal(
     validChallenge({ ...invite, rules: "morphology-v1", course: "hills" }),
     false,
   );
+});
+
+import worker from "../share-server/worker";
+import { decode } from "fast-png";
+import { socialChallengeURLs } from "../src/challenge";
+
+test("body weight changes actual acceleration and finish time substantially", () => {
+  const thin = sampleSnake(),
+    heavy = structuredClone(thin);
+  for (const part of ["head", "body", "tail"] as const) {
+    for (const stroke of thin.parts[part].strokes) stroke.width *= 0.25;
+    for (const stroke of heavy.parts[part].strokes) stroke.width *= 2.8;
+  }
+  const a = analyze(thin),
+    b = analyze(heavy);
+  assert.ok(a.acceleration > b.acceleration * 3);
+  const lightRace = createRace(thin, "auto"),
+    heavyRace = createRace(heavy, "auto");
+  finishRace(lightRace);
+  finishRace(heavyRace);
+  assert.ok(heavyRace.racers[0].finish! > lightRace.racers[0].finish! * 1.3);
+});
+
+test("personal share page exposes crawler metadata and a real unique snake PNG", async () => {
+  const race = createRace(sampleSnake(), "auto");
+  finishRace(race);
+  const urls = await socialChallengeURLs(
+    race,
+    "https://minho-nim.github.io/snake-race/",
+    2,
+  );
+  const before = JSON.stringify(race.racers[0].snake);
+  const page = await worker.fetch(
+    new Request(urls.share, { headers: { "User-Agent": "KakaoTalk-Scrap" } }),
+  );
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.ok(html.includes("이겨 봐!"));
+  assert.ok(html.includes('property="og:image:width" content="1200"'));
+  assert.ok(
+    html.includes(
+      'location.replace("https://minho-nim.github.io/snake-race/#challenge=',
+    ),
+  );
+  assert.ok(html.includes(urls.image.replaceAll("&", "&amp;")));
+  const response = await worker.fetch(new Request(urls.image));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Content-Type"), "image/png");
+  const bytes = new Uint8Array(await response.arrayBuffer()),
+    png = decode(bytes);
+  assert.equal(png.width, 1200);
+  assert.equal(png.height, 630);
+  const other = createRace(sampleSnake(2), "auto");
+  finishRace(other);
+  const different = await socialChallengeURLs(other, "https://example.com/", 0);
+  const otherBytes = new Uint8Array(
+    await (await worker.fetch(new Request(different.image))).arrayBuffer(),
+  );
+  assert.notDeepEqual(bytes, otherBytes);
+  assert.equal(JSON.stringify(race.racers[0].snake), before);
+  assert.equal(
+    (await worker.fetch(new Request(urls.image, { method: "HEAD" }))).status,
+    200,
+  );
+  assert.equal(
+    (await worker.fetch(new Request(urls.share, { method: "POST" }))).status,
+    405,
+  );
+  for (const d of ["invalid", "<script>", "a".repeat(24001)])
+    assert.equal(
+      (
+        await worker.fetch(
+          new Request("https://example.com/c?d=" + encodeURIComponent(d)),
+        )
+      ).status,
+      400,
+    );
+});
+
+import { COURSES, obstaclesFor, waterZonesFor } from "../src/courses";
+test("combined main course includes flat start, hills, water and hurdles with shared physics", async () => {
+  assert.equal(COURSES[0].id, "combined");
+  assert.equal(terrainAt("combined", 5).grade, 0);
+  assert.ok(terrainAt("combined", 25).grade > 0.35);
+  assert.ok(terrainAt("combined", 53).waterDepth > 0);
+  assert.equal(obstaclesFor("combined").length, 2);
+  assert.equal(waterZonesFor("combined").length, 2);
+  const race = createRace(sampleSnake(), "auto", "combined");
+  finishRace(race);
+  for (const r of race.racers) {
+    assert.ok(r.finish !== null);
+    assert.equal(r.autoJumps.length, 2);
+  }
+  const invite = (await readChallenge(
+    new URL(await challengeLink(race, "https://example.com/")).hash,
+  ))!;
+  assert.equal(invite.course, "combined");
+  assert.ok(verifyChallengeRecord(invite));
+  const flat = createRace(sampleSnake(), "auto", "sprint");
+  finishRace(flat);
+  assert.ok(race.racers[0].finish! > flat.racers[0].finish!);
+});
+test("hurdle impact starts a brief fall that suppresses propulsion then recovers", () => {
+  const race = createRace(sampleSnake(), "manual", "hurdles");
+  race.countdown = 0;
+  const r = race.racers[0];
+  r.distance = 25 - r.stats.headReach + 0.05;
+  r.speed = 8;
+  r.impulse = 1;
+  stepRace(race);
+  assert.ok(r.stumbleUntil > race.time);
+  assert.ok(r.speed < 4);
+  jump(race);
+  assert.equal(r.jumpHeight, 0);
+  for (let i = 0; i < 100; i++) stepRace(race);
+  assert.ok(race.time > r.stumbleUntil);
+  jump(race);
+  assert.ok(r.jumpHeight > 0);
 });

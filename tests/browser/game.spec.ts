@@ -295,18 +295,30 @@ test("shared challenge opens in a fresh browser and races the actual opponent re
   await page.getByRole("button", { name: /언덕 달리기/ }).click();
   await page.getByRole("button", { name: "경주 시작 →" }).click();
   await page.getByRole("button", { name: "결과보기 →" }).click();
+  await page.getByLabel("도전 문구").selectOption("2");
   await page.getByRole("button", { name: "친구에게 도전장 보내기 ↗" }).click();
-  await expect(page.getByLabel("친구 도전 링크")).toHaveValue(/#challenge=/);
+  await expect(page.getByLabel("친구 도전 링크")).toHaveValue(/\/c\?d=/);
   const url = await page.getByLabel("친구 도전 링크").inputValue();
+  const preview = page.getByAltText("내 뱀과 도발 문구가 담긴 공유 썸네일");
+  await expect(preview).toBeVisible();
+  await expect
+    .poll(() => preview.evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBe(1200);
+  const crawler = await page.request.get(url, {
+    headers: { "User-Agent": "KakaoTalk-Scrap" },
+  });
+  expect(crawler.status()).toBe(200);
+  expect(await crawler.text()).toContain(
+    'property="og:image:type" content="image/png"',
+  );
+
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
   });
   const friend = await context.newPage();
   friend.on("pageerror", (e) => errors.push(e.message));
   await friend.goto(url);
-  await expect(
-    friend.getByRole("heading", { name: "도전장이 도착했어요!" }),
-  ).toBeVisible();
+  await expect(friend.getByRole("heading", { name: "이겨 봐!" })).toBeVisible();
   await friend.screenshot({
     path: "docs/friend-challenge-mobile.png",
     fullPage: true,
@@ -394,7 +406,7 @@ test("shared challenger with a saved snake can choose it and directly prepare th
   await page.getByRole("button", { name: "경주 시작 →" }).click();
   await page.getByRole("button", { name: "결과보기 →" }).click();
   await page.getByRole("button", { name: "친구에게 도전장 보내기 ↗" }).click();
-  await expect(page.getByLabel("친구 도전 링크")).toHaveValue(/#challenge=/);
+  await expect(page.getByLabel("친구 도전 링크")).toHaveValue(/\/c\?d=/);
   const url = await page.getByLabel("친구 도전 링크").inputValue();
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -417,4 +429,27 @@ test("shared challenger with a saved snake can choose it and directly prepare th
   await friend.getByRole("button", { name: "결과보기 →" }).click();
   await expect(friend.locator(".challenge-verdict")).toBeVisible();
   await context.close();
+});
+
+test("combined course is first, selected by default and completes a main race", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  const courses = page.locator(".course-options button");
+  await expect(courses.first()).toContainText("종합경기");
+  await expect(courses.first()).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("★ 메인 · 종합경기 100m")).toBeVisible();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await expect(page.getByLabel("남은 추진 체력")).toBeVisible();
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+  await expect(
+    page.getByRole("heading", { name: "끝까지 달렸어요!" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("kkumul-race:v1")!).records[0].course,
+    ),
+  ).toBe("combined");
 });

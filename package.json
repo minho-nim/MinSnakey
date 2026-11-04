@@ -1,6 +1,6 @@
 {
   "name": "snake-race",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,12 +8,13 @@
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build && node scripts/standalone.mjs",
+    "build": "tsc -b && vite build && node scripts/standalone.mjs && node scripts/build-share-server.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx tests/physics.test.ts",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && npm test && npm run build"
+    "check": "npm run typecheck && npm test && npm run build",
+    "dev:share": "node scripts/dev-share-server.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -24,6 +25,8 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "esbuild": "^0.28.2",
+    "fast-png": "^8.0.0",
     "tsx": "^4.20.0",
     "typescript": "~5.9.3",
     "vite": "^7.2.0"
