@@ -98,7 +98,7 @@ export function drawSnake(
         };
       },
       ratio * scale,
-      (i) => (drawingConnection(drawing).detached.includes(i) ? 0.28 : 1),
+      (i) => (drawingConnection(drawing, kind).detached.includes(i) ? 0.28 : 1),
     );
   }
   part("tail");

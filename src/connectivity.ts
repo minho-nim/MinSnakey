@@ -7,8 +7,9 @@ export type ConnectionReport = {
   detached: number[];
   anchorAttached: boolean;
   missing: boolean;
+  eyes: number[];
 };
-const cache = new WeakMap<Drawing, ConnectionReport>();
+const cache = new WeakMap<Drawing, Map<string, ConnectionReport>>();
 const pointDistance = (p: Point, a: Point, b: Point) => {
   const dx = b.x - a.x,
     dy = b.y - a.y,
@@ -49,10 +50,27 @@ function inside(p: Point, polygon: Point[]) {
   }
   return yes;
 }
+function markBounds(points: { x: number; y: number; r: number }[]) {
+  let left = Infinity,
+    right = -Infinity,
+    top = Infinity,
+    bottom = -Infinity;
+  for (const p of points) {
+    left = Math.min(left, p.x - p.r);
+    right = Math.max(right, p.x + p.r);
+    top = Math.min(top, p.y - p.r);
+    bottom = Math.max(bottom, p.y + p.r);
+  }
+  return { left, right, top, bottom };
+}
 /** Stroke capsules must touch the anchored component. Closed-outline interior
  * details (eyes, mouth) belong to that component without needing drawn bridges. */
-export function drawingConnection(drawing: Drawing): ConnectionReport {
-  const old = cache.get(drawing);
+export function drawingConnection(
+  drawing: Drawing,
+  kind?: PartName,
+): ConnectionReport {
+  const key = kind || "generic",
+    old = cache.get(drawing)?.get(key);
   if (old) return old;
   const strokes = drawing.strokes,
     parent = strokes.map((_, i) => i),
@@ -152,6 +170,69 @@ export function drawingConnection(drawing: Drawing): ConnectionReport {
         join(i, j);
   if (anchorStrokes.length)
     for (const i of anchorStrokes) join(i, anchorStrokes[0]);
+  const eyes: number[] = [];
+  // Open outlines also have eyes. Recognize compact marks near the anchored
+  // face, using fixed face bounds so marks cannot form a chain away from it.
+  if (kind === "head" && anchorStrokes.length) {
+    const face = strokes.flatMap((s, i) =>
+      root(i) === root(anchorStrokes[0])
+        ? s.points.map((p) => ({ x: p.x, y: p.y, r: s.width / 2 }))
+        : [],
+    );
+    const { left, right, top, bottom } = markBounds(face);
+    const w = right - left,
+      h = bottom - top,
+      span = Math.max(w, h),
+      eyeSize = Math.min(32, span * 0.27),
+      margin = Math.min(28, Math.max(10, span * 0.18));
+    const groups = new Map<number, number[]>();
+    strokes.forEach((_, i) => {
+      if (root(i) !== root(anchorStrokes[0]))
+        groups.set(root(i), [...(groups.get(root(i)) || []), i]);
+    });
+    let accepted = 0;
+    for (const indices of groups.values()) {
+      const points = indices.flatMap((i) =>
+        strokes[i].points.map((p) => ({ ...p, r: strokes[i].width / 2 })),
+      );
+      const { left: x0, right: x1, top: y0, bottom: y1 } = markBounds(points);
+      const cx = (x0 + x1) / 2,
+        cy = (y0 + y1) / 2;
+      const length = indices.reduce(
+        (sum, i) =>
+          sum +
+          strokes[i].points.reduce(
+            (n, p, j) =>
+              j
+                ? n +
+                  Math.hypot(
+                    p.x - strokes[i].points[j - 1].x,
+                    p.y - strokes[i].points[j - 1].y,
+                  )
+                : n,
+            0,
+          ),
+        0,
+      );
+      if (
+        span >= 32 &&
+        accepted < 4 &&
+        x1 - x0 <= eyeSize &&
+        y1 - y0 <= eyeSize &&
+        length <= eyeSize * 4 &&
+        cx >= left - margin * 0.4 &&
+        cx <= right + margin * 0.4 &&
+        cy >= top - margin &&
+        cy <= (top + bottom) / 2 + Math.max(6, h * 0.18)
+      ) {
+        indices.forEach((i) => {
+          join(i, anchorStrokes[0]);
+          eyes.push(i);
+        });
+        accepted++;
+      }
+    }
+  }
   const detached = strokes
     .map((_, i) => i)
     .filter((i) => !anchorStrokes.length || root(i) !== root(anchorStrokes[0]));
@@ -161,15 +242,18 @@ export function drawingConnection(drawing: Drawing): ConnectionReport {
     detached,
     anchorAttached: anchorStrokes.length > 0,
     missing: strokes.length === 0,
+    eyes,
   };
-  cache.set(drawing, result);
+  const entries = cache.get(drawing) || new Map();
+  entries.set(key, result);
+  cache.set(drawing, entries);
   return result;
 }
 const LABELS = { head: "머리", body: "몸통", tail: "꼬리" };
 export function snakeConnections(snake: Snake) {
   const parts = ["head", "body", "tail"] as const;
   const reports = Object.fromEntries(
-    parts.map((kind) => [kind, drawingConnection(snake.parts[kind])]),
+    parts.map((kind) => [kind, drawingConnection(snake.parts[kind], kind)]),
   ) as Record<PartName, ConnectionReport>;
   // Check the real body slots as well, including the safe backbone of a dot.
   if (reports.body.connected) {

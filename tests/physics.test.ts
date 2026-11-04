@@ -815,3 +815,93 @@ test("a tiny body dot cannot leave the actual head or tail attachment floating",
   );
   assert.ok(snakeConnections(snake).connected);
 });
+
+function openFace() {
+  return drawing(
+    [
+      {
+        points: [
+          { x: 40, y: 140 },
+          { x: 45, y: 90 },
+          { x: 155, y: 90 },
+          { x: 175, y: 140 },
+        ],
+        width: 6,
+        color: "#365939",
+      },
+    ],
+    "head",
+  );
+}
+test("small eye dots in an open head are accepted without requiring closed outlines or drawn bridges", () => {
+  const head = openFace();
+  head.strokes.push(
+    ...[85, 130].map((x) => ({
+      points: [{ x, y: 110 }],
+      width: 8,
+      color: "#263b30",
+    })),
+  );
+  assert.equal(drawingConnection(head).connected, false);
+  const recognized = drawingConnection(head, "head");
+  assert.ok(recognized.connected);
+  assert.deepEqual(recognized.eyes, [1, 2]);
+  assert.deepEqual(recognized.detached, []);
+  const snake = sampleSnake();
+  snake.parts.head = head;
+  assert.doesNotThrow(() => createRace(snake, "auto"));
+});
+test("a small round eye and wink near the upper face can be recognized", () => {
+  const head = openFace();
+  head.strokes.push(
+    {
+      points: Array.from({ length: 25 }, (_, i) => ({
+        x: 90 + 7 * Math.cos((i / 24) * Math.PI * 2),
+        y: 72 + 7 * Math.sin((i / 24) * Math.PI * 2),
+      })),
+      width: 3,
+      color: "#263b30",
+    },
+    {
+      points: [
+        { x: 120, y: 110 },
+        { x: 128, y: 106 },
+        { x: 136, y: 110 },
+      ],
+      width: 3,
+      color: "#263b30",
+    },
+  );
+  assert.ok(drawingConnection(head, "head").connected);
+  assert.deepEqual(drawingConnection(head, "head").eyes, [1, 2]);
+});
+test("eye recognition never permits distant marks, large loose pieces, detached body strokes or an off-ink anchor", () => {
+  const head = openFace();
+  head.strokes.push(
+    { points: [{ x: 320, y: 30 }], width: 8, color: "#263b30" },
+    {
+      points: [
+        { x: 65, y: 120 },
+        { x: 150, y: 120 },
+      ],
+      width: 4,
+      color: "#365939",
+    },
+  );
+  assert.deepEqual(drawingConnection(head, "head").detached, [1, 2]);
+  const withEyes = openFace();
+  withEyes.strokes.push({
+    points: [{ x: 90, y: 110 }],
+    width: 8,
+    color: "#263b30",
+  });
+  assert.ok(drawingConnection(withEyes, "head").connected);
+  assert.equal(drawingConnection(withEyes, "body").connected, false);
+  assert.equal(
+    drawingConnection(
+      { ...withEyes, anchor: { x: 450, y: 350 }, anchorManual: true },
+      "head",
+    ).connected,
+    false,
+  );
+});
