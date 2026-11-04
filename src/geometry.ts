@@ -10,6 +10,7 @@ export type BodyRig = {
   length: number;
   curve: number;
   head: Binding;
+  tail: Binding;
   bindings: Binding[][];
 };
 const cache = new WeakMap<Drawing, BodyRig>();
@@ -208,6 +209,7 @@ export function bodyRig(body: Drawing): BodyRig {
     head: body.anchorManual
       ? project(body.anchor, source)
       : { bone: 0, t: 0, normal: 0 },
+    tail: body.tailAnchor ? project(body.tailAnchor, source) : { bone: 23, t: 1, normal: 0 },
     curve: limit(total / Math.max(24, direct) - 1, 0, 3),
     bindings: body.strokes.map((s) => s.points.map((p) => project(p, source))),
   };
@@ -266,13 +268,13 @@ export function eraseStrokes(
 export function partFrame(rig: BodyRig, nodes: Point[], kind: "head" | "tail") {
   const head = kind === "head",
     last = nodes.length - 1;
-  const node = head ? skinPoint(rig.head, nodes, rig.scale) : nodes[last];
+  const node = skinPoint(head ? rig.head : rig.tail, nodes, rig.scale);
   const index = head
     ? Math.min(last, rig.head.bone + 5)
-    : Math.max(0, last - 5);
+    : Math.max(0, rig.tail.bone - 4);
   const restNode = head
     ? skinPoint(rig.head, rig.rest, rig.scale)
-    : rig.rest[last];
+    : skinPoint(rig.tail, rig.rest, rig.scale);
   const direction = (at: Point, other: Point) =>
     Math.atan2(
       head ? at.y - other.y : other.y - at.y,

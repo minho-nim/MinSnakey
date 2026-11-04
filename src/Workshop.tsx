@@ -25,7 +25,7 @@ import { fitCanvas, renderPreview } from "./render";
 import { createRacer } from "./physics";
 const W = 480,
   H = 420;
-type Tool = "pen" | "eraser" | "anchor";
+type Tool = "pen" | "eraser" | "anchor" | "tail-anchor";
 const colors = [
   "#365939",
   "#dc7b39",
@@ -82,6 +82,7 @@ function Pad({
     const d = active.current
       ? {
           ...drawing([...raw.strokes, active.current], kind),
+          tailAnchor: raw.tailAnchor,
           ...(raw.anchorManual || (kind !== "body" && raw.strokes.length > 0)
             ? { anchor: raw.anchor, anchorManual: raw.anchorManual }
             : {}),
@@ -149,7 +150,7 @@ function Pad({
       anchor.y + 27,
     );
     if (kind === "body" && d.strokes.length) {
-      const tail = bodyRig(d).source.at(-1)!;
+      const tail = d.tailAnchor || bodyRig(d).source.at(-1)!;
       ctx.beginPath();
       ctx.arc(tail.x, tail.y, 7, 0, Math.PI * 2);
       ctx.fillStyle = "#76b7b0";
@@ -204,6 +205,8 @@ function Pad({
         strokes: eraseStrokes(d.strokes, p, width * 1.5),
       };
     }
+    if (tool === "tail-anchor")
+      erased.current = { ...value, tailAnchor: p };
     if (tool === "anchor")
       erased.current = { ...value, anchor: p, anchorManual: true };
     if (performance.now() - lastLive.current > 45) {
@@ -227,6 +230,7 @@ function Pad({
           anchor: value.anchor,
           anchorManual: value.anchorManual,
         };
+      if (tool !== "tail-anchor") snapshot = { ...snapshot, tailAnchor: value.tailAnchor };
       onLive(snapshot);
       lastLive.current = performance.now();
     }
@@ -248,6 +252,7 @@ function Pad({
         anchor: value.anchor,
         anchorManual: value.anchorManual,
       };
+    if (tool !== "tail-anchor") result = { ...result, tailAnchor: value.tailAnchor };
     pointer.current = null;
     active.current = null;
     erased.current = null;
@@ -529,8 +534,9 @@ export default function Workshop({
         >
           ⊙ 연결점 {tool === "anchor" ? "이동 중" : "옮기기"}
         </button>
+        {kind === "body" && <button aria-pressed={tool === "tail-anchor"} onClick={() => setTool(tool === "tail-anchor" ? "pen" : "tail-anchor")}>꼬리 연결점 설정</button>}
         <span>
-          {tool === "anchor"
+          {tool === "tail-anchor" ? "몸통에서 꼬리를 붙일 곳을 눌러 주세요" : tool === "anchor"
             ? "종이를 눌러 연결할 자리를 정해요"
             : tool === "eraser"
               ? "문지르면 지나간 부분만 지워져요"

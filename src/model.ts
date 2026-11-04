@@ -9,6 +9,7 @@ export type Drawing = {
   strokes: Stroke[];
   anchor: Point;
   anchorManual?: boolean;
+  tailAnchor?: Point;
   size: { width: number; height: number };
   collision: Point[];
 };

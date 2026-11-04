@@ -23,6 +23,7 @@ export function validSnake(value: unknown): value is Snake {
       const d = s.parts?.[k];
       return (
         d &&
+        (!d.tailAnchor || (Number.isFinite(d.tailAnchor.x) && Number.isFinite(d.tailAnchor.y))) &&
         Number.isFinite(d.anchor?.x) &&
         Number.isFinite(d.anchor?.y) &&
         Array.isArray(d.strokes) &&
