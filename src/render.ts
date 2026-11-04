@@ -5,7 +5,7 @@ import {
   HILL_VISUAL_RATIO,
   JUMP_VISUAL_RATIO,
 } from "./courses";
-import { bodyRig, skinPoint } from "./geometry";
+import { bodyRig, skinPoint, partFrame } from "./geometry";
 import { bounds, clamp, type Drawing, type Point } from "./model";
 import { previewRacer, type Racer, type Race } from "./physics";
 export function fitCanvas(canvas: HTMLCanvasElement) {
@@ -57,8 +57,7 @@ export function drawSnake(
   scale: number,
 ) {
   const body = r.snake.parts.body,
-    rig = bodyRig(body),
-    n = r.nodes.length;
+    rig = bodyRig(body);
   body.strokes.forEach((stroke, strokeIndex) => {
     const points = stroke.points.map((_, i) =>
       skinPoint(rig.bindings[strokeIndex][i], r.nodes, rig.scale),
@@ -72,14 +71,7 @@ export function drawSnake(
   });
   function part(kind: "head" | "tail") {
     const drawing = r.snake.parts[kind],
-      head = kind === "head",
-      i = head ? 0 : n - 1,
-      node = head ? skinPoint(rig.head, r.nodes, rig.scale) : r.nodes[i],
-      other = r.nodes[head ? Math.min(n - 1, rig.head.bone + 1) : n - 2];
-    const angle = Math.atan2(
-      head ? node.y - other.y : other.y - node.y,
-      head ? node.x - other.x : other.x - node.x,
-    );
+      { node, angle } = partFrame(rig, r.nodes, kind);
     const ratio = rig.scale,
       anchor = drawing.anchor;
     const co = Math.cos(angle),
@@ -108,15 +100,7 @@ export function snakeExtents(r: Racer) {
     a.forEach((b) => points.push(skinPoint(b, r.nodes, rig.scale))),
   );
   for (const kind of ["head", "tail"] as const) {
-    const head = kind === "head",
-      i = head ? 0 : r.nodes.length - 1,
-      node = head ? skinPoint(rig.head, r.nodes, rig.scale) : r.nodes[i],
-      other =
-        r.nodes[head ? Math.min(r.nodes.length - 1, rig.head.bone + 1) : i - 1],
-      angle = Math.atan2(
-        head ? node.y - other.y : other.y - node.y,
-        head ? node.x - other.x : other.x - node.x,
-      ),
+    const { node, angle } = partFrame(rig, r.nodes, kind),
       co = Math.cos(angle),
       si = Math.sin(angle),
       part = r.snake.parts[kind];

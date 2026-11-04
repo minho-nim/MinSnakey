@@ -190,7 +190,7 @@ export function sampleSnake(index = 0): Snake {
   });
   const line = (fn: (t: number) => Point, n = 50) =>
     Array.from({ length: n }, (_, i) => fn(i / (n - 1)));
-  const head = [
+  let head = [
     stroke(
       line((t) => ({
         x: 80 + 51 * Math.cos(t * Math.PI * 2),
@@ -215,7 +215,7 @@ export function sampleSnake(index = 0): Snake {
       "#263b30",
     ),
   ];
-  const body = [
+  let body = [
     stroke(
       line((t) => ({
         x: 35 + t * (350 + index * 12),
@@ -224,15 +224,197 @@ export function sampleSnake(index = 0): Snake {
       17 - index,
     ),
   ];
-  const tail = [
+  let tail = [
     stroke(
       line((t) => ({ x: 25 + t * 140, y: 140 + Math.sin(t * Math.PI) * 36 })),
       10,
     ),
   ];
+  // Every CPU uses its actual drawing for both rendering and physical stats.
+  // Keep the player's familiar sample (index 0) unchanged.
+  const kind = index % 4;
+  if (kind === 1) {
+    // Angular little dragon: triangular snout, horns, sawtooth body and tail.
+    head = [
+      stroke(
+        [
+          { x: 28, y: 135 },
+          { x: 65, y: 104 },
+          { x: 139, y: 133 },
+          { x: 72, y: 157 },
+          { x: 28, y: 135 },
+        ],
+        8,
+      ),
+      stroke(
+        [
+          { x: 48, y: 116 },
+          { x: 44, y: 87 },
+          { x: 70, y: 106 },
+        ],
+        6,
+      ),
+      stroke(
+        [
+          { x: 88, y: 120 },
+          { x: 89, y: 121 },
+        ],
+        8,
+        "#263b30",
+      ),
+      stroke(
+        [
+          { x: 112, y: 141 },
+          { x: 135, y: 135 },
+        ],
+        3,
+        "#263b30",
+      ),
+    ];
+    body = [
+      stroke(
+        line((t) => ({
+          x: 35 + t * 310,
+          y: 140 + Math.asin(Math.sin(t * Math.PI * 6)) * 19,
+        })),
+        14,
+      ),
+    ];
+    tail = [
+      stroke(
+        [
+          { x: 25, y: 140 },
+          { x: 65, y: 118 },
+          { x: 98, y: 147 },
+          { x: 125, y: 128 },
+          { x: 155, y: 140 },
+        ],
+        7,
+      ),
+    ];
+  } else if (kind === 2) {
+    // Round dumpling: wide cheeks, two protruding eyes, a chunky low body.
+    head = [
+      stroke(
+        line((t) => ({
+          x: 83 + 55 * Math.cos(t * Math.PI * 2),
+          y: 137 + 43 * Math.sin(t * Math.PI * 2),
+        })),
+        13,
+      ),
+      ...[65, 104].map((x) =>
+        stroke(
+          line(
+            (t) => ({
+              x: x + 12 * Math.cos(t * Math.PI * 2),
+              y: 99 + 14 * Math.sin(t * Math.PI * 2),
+            }),
+            24,
+          ),
+          6,
+        ),
+      ),
+      ...[67, 107].map((x) =>
+        stroke(
+          [
+            { x, y: 96 },
+            { x: x + 1, y: 97 },
+          ],
+          6,
+          "#263b30",
+        ),
+      ),
+      stroke(
+        line(
+          (t) => ({ x: 80 + t * 37, y: 143 + 9 * Math.sin(t * Math.PI) }),
+          20,
+        ),
+        4,
+        "#263b30",
+      ),
+    ];
+    body = [
+      stroke(
+        line((t) => ({
+          x: 35 + t * 255,
+          y: 140 + Math.sin(t * Math.PI * 4) * 14,
+        })),
+        27,
+      ),
+    ];
+    tail = [
+      stroke(
+        line((t) => ({ x: 25 + t * 95, y: 140 + Math.sin(t * Math.PI) * 24 })),
+        17,
+      ),
+    ];
+  } else if (kind === 3) {
+    // Slender ribbon fish: pointed head, long sweeping body, forked tail.
+    head = [
+      stroke(
+        [
+          { x: 28, y: 137 },
+          { x: 78, y: 112 },
+          { x: 148, y: 137 },
+          { x: 78, y: 153 },
+          { x: 28, y: 137 },
+        ],
+        7,
+      ),
+      stroke(
+        [
+          { x: 105, y: 129 },
+          { x: 106, y: 130 },
+        ],
+        7,
+        "#263b30",
+      ),
+      stroke(
+        [
+          { x: 140, y: 138 },
+          { x: 151, y: 138 },
+        ],
+        3,
+        "#263b30",
+      ),
+      stroke(
+        [
+          { x: 55, y: 121 },
+          { x: 43, y: 99 },
+          { x: 83, y: 116 },
+        ],
+        4,
+      ),
+    ];
+    body = [
+      stroke(
+        line(
+          (t) => ({
+            x: 35 + t * 470,
+            y: 140 + Math.sin(t * Math.PI * 2.5) * 32,
+          }),
+          70,
+        ),
+        9,
+      ),
+    ];
+    tail = [
+      stroke(
+        [
+          { x: 25, y: 140 },
+          { x: 80, y: 140 },
+          { x: 136, y: 108 },
+          { x: 117, y: 140 },
+          { x: 136, y: 166 },
+          { x: 80, y: 140 },
+        ],
+        5,
+      ),
+    ];
+  }
   return {
     id: `sample-${index}`,
-    name: ["초록 꼬물이", "귤빛 쌩쌩이", "보라 지그재그", "민트 바람이"][
+    name: ["초록 꼬물이", "귤빛 뿔룡이", "보라 통통이", "민트 리본이"][
       index % 4
     ],
     parts: {
