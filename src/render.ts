@@ -1,3 +1,4 @@
+import { terrainAt, WATER_ZONES } from "./courses";
 import { bodyRig, skinPoint } from "./geometry";
 import { bounds, clamp, type Drawing, type Point } from "./model";
 import { previewRacer, type Racer, type Race } from "./physics";
@@ -154,16 +155,29 @@ export function renderPreview(canvas: HTMLCanvasElement, r: Racer) {
     scale,
   );
 }
-export type RaceCamera={x:number;scale?:number;viewport?:string};
-export function trackScale(race:Race,camera:RaceCamera,width:number,height:number){
- const viewport=`${width}:${height}`;
- if(camera.scale===undefined||camera.viewport!==viewport){
-  const laneHeight=(height-46)/4;
-  const restHeight=Math.max(1,...race.racers.map(r=>snakeExtents({...r,nodes:r.rest}).h+r.stats.amplitude*2));
-  camera.scale=Math.min(width<650?36:52,laneHeight*.65/restHeight);
-  camera.viewport=viewport;
- }
- return camera.scale;
+export type RaceCamera = { x: number; scale?: number; viewport?: string };
+export function trackScale(
+  race: Race,
+  camera: RaceCamera,
+  width: number,
+  height: number,
+) {
+  const viewport = `${width}:${height}`;
+  if (camera.scale === undefined || camera.viewport !== viewport) {
+    const laneHeight = (height - 46) / 4;
+    const restHeight = Math.max(
+      1,
+      ...race.racers.map(
+        (r) => snakeExtents({ ...r, nodes: r.rest }).h + r.stats.amplitude * 2,
+      ),
+    );
+    camera.scale = Math.min(
+      width < 650 ? 36 : 52,
+      (laneHeight * 0.65) / restHeight,
+    );
+    camera.viewport = viewport;
+  }
+  return camera.scale;
 }
 export function renderRace(
   canvas: HTMLCanvasElement,
@@ -173,23 +187,59 @@ export function renderRace(
 ) {
   const { ctx, w, h } = fitCanvas(canvas),
     laneH = (h - 46) / 4,
-    scale = trackScale(race,camera,w,h);
+    scale = trackScale(race, camera, w, h);
   const player = race.racers[0],
-    desired = w/scale>=104?(100-w/scale)/2:clamp(player.distance - (w / scale) * 0.52, -2, 102 - w / scale);
+    desired =
+      w / scale >= 104
+        ? (100 - w / scale) / 2
+        : clamp(player.distance - (w / scale) * 0.52, -2, 102 - w / scale);
   camera.x += (desired - camera.x) * Math.min(1, elapsed * 5);
   const sx = (m: number) => (m - camera.x) * scale;
   ctx.fillStyle = "#e8eee0";
   ctx.fillRect(0, 0, w, h);
+  const groundY = (screenX: number, base: number) =>
+    base -
+    terrainAt(race.course, camera.x + screenX / scale).elevation * scale * 0.18;
   for (let i = 0; i < 4; i++) {
+    const top = 28 + i * laneH,
+      bottom = 28 + (i + 1) * laneH;
     ctx.fillStyle = i === 0 ? "#e4c59e" : i % 2 ? "#edd7b9" : "#e8cdae";
-    ctx.fillRect(0, 28 + i * laneH, w, laneH);
+    ctx.beginPath();
+    for (let x = 0; x <= w + 12; x += 12) {
+      const y = groundY(x, top);
+      if (!x) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    for (let x = w + 12; x >= 0; x -= 12) ctx.lineTo(x, groundY(x, bottom));
+    ctx.closePath();
+    ctx.fill();
+    if (race.course === "puddles")
+      for (const zone of WATER_ZONES) {
+        const left = sx(zone.start),
+          width = (zone.end - zone.start) * scale;
+        if (left + width < 0 || left > w) continue;
+        ctx.fillStyle = "#83b9bb";
+        ctx.fillRect(left, top + 2, width, laneH - 4);
+        ctx.strokeStyle = "#c4e1d7";
+        ctx.lineWidth = 2;
+        for (let j = 0; j < 3; j++) {
+          ctx.beginPath();
+          ctx.moveTo(left + 8, top + 18 + j * 15);
+          ctx.lineTo(left + width - 8, top + 18 + j * 15);
+          ctx.stroke();
+        }
+      }
     ctx.strokeStyle = "#fffcf2";
     ctx.lineWidth = 2;
     ctx.setLineDash([13, 10]);
     ctx.beginPath();
-    ctx.moveTo(0, 28 + (i + 1) * laneH);
-    ctx.lineTo(w, 28 + (i + 1) * laneH);
+    for (let x = 0; x <= w + 12; x += 12) {
+      const y = groundY(x, bottom);
+      if (!x) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
     ctx.stroke();
+    ctx.setLineDash([]);
   }
   ctx.setLineDash([]);
   ctx.font = "bold 11px sans-serif";
@@ -216,7 +266,7 @@ export function renderRace(
   }
   race.racers.forEach((r, i) => {
     const x = sx(r.distance),
-      y = 28 + (i + 0.56) * laneH;
+      y = groundY(x, 28 + (i + 0.56) * laneH);
     ctx.fillStyle = "#5b493a16";
     ctx.beginPath();
     ctx.ellipse(

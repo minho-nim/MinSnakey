@@ -1,15 +1,9 @@
 # GitHub 업로드와 공개 플레이 주소
 
-현재 작업 공간에서 게임 코드와 자동 배포 워크플로를 준비했다. GitHub 저장소는 https://github.com/minho-nim/snake-race 이다. GitHub Pages 최초 설정과 배포 성공 확인은 필요하다.
+GitHub 저장소: https://github.com/minho-nim/snake-race
+공개 게임 주소: https://minho-nim.github.io/snake-race/
 
-## 최초 연결
-
-1. GitHub에서 `snake-race` 공개 저장소를 만든다. README를 포함해도 된다.
-2. 저장소 Settings → Pages → Build and deployment → Source를 **GitHub Actions**로 선택한다.
-3. 저장소 URL을 개발 채팅에 알려주면 게임 코드와 `.github/workflows/pages.yml`을 업로드한다.
-4. 워크플로의 Build와 Deploy가 성공하면 Pages에서 확인된 주소로 접속한다.
-
-새 저장소 생성과 Pages 설정은 현재 GitHub 연결 도구가 지원하지 않아 저장소 소유자가 해야 한다. 코드 업로드 도구는 연결돼 있다. 업로드 후 권한 오류가 발생하면 GitHub 연결이 해당 새 저장소에 접근하도록 허용해야 한다.
+저장소 생성과 Pages Source=GitHub Actions 설정을 완료했고, GitHub Actions의 Build·Deploy 성공 및 반환된 게임 주소를 확인했다.
 
 ## 이후 업데이트
 
