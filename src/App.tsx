@@ -1,3 +1,4 @@
+import { snakeConnections } from "./connectivity";
 import { TAUNTS } from "./share-copy";
 import {
   readChallenge,
@@ -545,6 +546,11 @@ export default function App() {
     window.scrollTo(0, 0);
   };
   const saveSnake = () => {
+    const check = snakeConnections({ ...snake, parts: editParts });
+    if (!check.connected) {
+      notify(check.message);
+      return;
+    }
     const value: Snake = {
       ...snake,
       name: editName.trim() || "이름 없는 꼬물이",
@@ -561,6 +567,11 @@ export default function App() {
     setPage("preview");
   };
   const start = () => {
+    const check = snakeConnections(snake);
+    if (!check.connected) {
+      notify(check.message);
+      return;
+    }
     setShareURL("");
     setRace(createRace(snake, mode, course, incoming));
     setPage("race");
@@ -610,7 +621,7 @@ export default function App() {
           }}
         >
           <span className="brand-mark">〰</span>꼬물 레이스
-          <span className="version">v0.7</span>
+          <span className="version">v0.7.1</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">
@@ -766,7 +777,11 @@ export default function App() {
             <p className="muted">내가 그린 선이 움직이기 시작했어요.</p>
             <div className="assembled">
               <Preview snake={snake} />
-              <span className="tag">머리 + 몸통 + 꼬리 · 연결 완료</span>
+              <span className="tag">
+                {snakeConnections(snake).connected
+                  ? "머리 + 몸통 + 꼬리 · 연결 완료"
+                  : "연결을 확인해 주세요"}
+              </span>
             </div>
             <label className="name-field">
               꼬물이 이름
@@ -777,6 +792,11 @@ export default function App() {
                 placeholder="이름을 지어주세요"
               />
             </label>
+            {!snakeConnections(snake).connected && (
+              <p className="connection-warning" role="alert">
+                {snakeConnections(snake).message}
+              </p>
+            )}
             <AbilityPanel stats={stat} />
             <div className="center-actions">
               <button className="secondary" onClick={() => edit()}>
@@ -784,6 +804,7 @@ export default function App() {
               </button>
               <button
                 className="primary"
+                disabled={!snakeConnections(snake).connected}
                 onClick={() => {
                   const s = {
                     ...snake,
@@ -827,6 +848,12 @@ export default function App() {
                   도전 종료
                 </button>
               </div>
+            )}
+            {!snakeConnections(snake).connected && (
+              <p className="connection-warning" role="alert">
+                {snakeConnections(snake).message} 위의 내 뱀 수정에서 고칠 수
+                있어요.
+              </p>
             )}
             <div className="prepare-grid">
               <div className="racer-profile">
@@ -976,7 +1003,11 @@ export default function App() {
                     {courseInfo(course).name} · 4마리 ·{" "}
                     {mode === "auto" ? "자동" : "수동"} 달리기
                   </span>
-                  <button className="primary start-button" onClick={start}>
+                  <button
+                    className="primary start-button"
+                    disabled={!snakeConnections(snake).connected}
+                    onClick={start}
+                  >
                     {incoming ? "도전 시작" : "경주 시작"} <span>→</span>
                   </button>
                 </div>

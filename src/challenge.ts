@@ -1,3 +1,4 @@
+import { snakeConnections } from "./connectivity";
 import { TAUNTS, SHARE_ORIGIN } from "./share-copy";
 import { RULES_VERSION, type Snake, type Mode } from "./model";
 import type { CourseId } from "./courses";
@@ -60,6 +61,7 @@ export function validChallenge(value: unknown): value is Challenge {
           c.taunt < TAUNTS.length)) &&
       c.rules === RULES_VERSION &&
       validSnake(c.snake) &&
+      snakeConnections(c.snake).connected &&
       ["combined", "sprint", "hills", "puddles", "hurdles"].includes(
         c.course,
       ) &&

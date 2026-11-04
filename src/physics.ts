@@ -1,3 +1,4 @@
+import { snakeConnections } from "./connectivity";
 import type { Challenge, ReplayInput } from "./challenge";
 import { terrainAt, obstaclesFor, type CourseId } from "./courses";
 import {
@@ -100,6 +101,12 @@ export function createRace(
   course: CourseId = "sprint",
   challenge: Challenge | null = null,
 ): Race {
+  const connection = snakeConnections(snake);
+  if (!connection.connected) throw new Error(connection.message);
+  if (challenge && !snakeConnections(challenge.snake).connected)
+    throw new Error(
+      "상대 뱀의 부위가 떨어져 있습니다. 새 도전 링크를 받아주세요.",
+    );
   return {
     course,
     inputs: [],

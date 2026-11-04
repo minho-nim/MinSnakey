@@ -453,3 +453,104 @@ test("combined course is first, selected by default and completes a main race", 
     ),
   ).toBe("combined");
 });
+
+test("disconnected body is translucent, blocks assembly and saved race start, and can be repaired", async ({
+  page,
+}) => {
+  const snake = sampleSnake();
+  snake.parts.body = {
+    ...snake.parts.body,
+    strokes: [
+      {
+        points: [
+          { x: 20, y: 200 },
+          { x: 200, y: 200 },
+        ],
+        width: 12,
+        color: "#365939",
+      },
+      {
+        points: [
+          { x: 270, y: 200 },
+          { x: 390, y: 200 },
+        ],
+        width: 12,
+        color: "#365939",
+      },
+    ],
+    anchor: { x: 390, y: 200 },
+    anchorManual: true,
+  };
+  await page.addInitScript(
+    (s) =>
+      localStorage.setItem(
+        "kkumul-race:v1",
+        JSON.stringify({ snakes: [s], records: [] }),
+      ),
+    snake,
+  );
+  await page.goto("/");
+  await page
+    .getByRole("navigation", { name: "그리기 단계" })
+    .getByRole("button", { name: /몸통/ })
+    .click();
+  await expect(page.getByRole("alert")).toContainText(
+    "몸통 부위가 떨어져 있습니다",
+  );
+  const canvas = page.getByLabel("몸통 그리기 캔버스");
+  const alpha = await canvas.evaluate((c: HTMLCanvasElement) => {
+    const ctx = c.getContext("2d")!;
+    return [100, 300].map(
+      (x) =>
+        ctx.getImageData(
+          Math.floor((x * c.width) / 480),
+          Math.floor((201 * c.height) / 420),
+          1,
+          1,
+        ).data[3],
+    );
+  });
+  expect(alpha[0]).toBeLessThan(140);
+  expect(alpha[1]).toBeGreaterThan(240);
+  await page
+    .getByRole("navigation", { name: "그리기 단계" })
+    .getByRole("button", { name: /꼬리/ })
+    .click();
+  await expect(page.getByRole("button", { name: /조립!/ })).toBeDisabled();
+  await page.getByRole("button", { name: "내 뱀", exact: true }).click();
+  await page.getByRole("button", { name: "경기 준비 →", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "경주 시작 →" }),
+  ).toBeDisabled();
+  await expect(page.getByRole("alert")).toContainText(
+    "몸통 부위가 떨어져 있습니다",
+  );
+  await page
+    .getByRole("button", { name: "✎ 내 뱀 수정", exact: false })
+    .click();
+  await page
+    .getByRole("navigation", { name: "그리기 단계" })
+    .getByRole("button", { name: /몸통/ })
+    .click();
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(
+    box.x + (195 / 480) * box.width,
+    box.y + (200 / 420) * box.height,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    box.x + (275 / 480) * box.width,
+    box.y + (200 / 420) * box.height,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page
+    .getByRole("navigation", { name: "그리기 단계" })
+    .getByRole("button", { name: /꼬리/ })
+    .click();
+  await expect(page.getByRole("button", { name: /조립!/ })).toBeEnabled();
+  await page.getByRole("button", { name: /조립!/ }).click();
+  await page.getByRole("button", { name: "경기 준비하러 →" }).click();
+  await expect(page.getByRole("button", { name: "경주 시작 →" })).toBeEnabled();
+});

@@ -1,3 +1,4 @@
+import { drawingConnection, snakeConnections } from "./connectivity";
 import { abilityScore } from "./abilities";
 import AbilityPanel from "./AbilityPanel";
 import {
@@ -75,13 +76,21 @@ function Pad({
       ctx.lineTo(W, y);
       ctx.stroke();
     }
-    const d = erased.current || value;
+    const raw = erased.current || value;
+    const d = active.current
+      ? {
+          ...drawing([...raw.strokes, active.current], kind),
+          ...(raw.anchorManual
+            ? { anchor: raw.anchor, anchorManual: true }
+            : {}),
+        }
+      : raw;
+    const connection = drawingConnection(d);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    for (const s of [
-      ...d.strokes,
-      ...(active.current ? [active.current] : []),
-    ]) {
+    for (let strokeIndex = 0; strokeIndex < d.strokes.length; strokeIndex++) {
+      const s = d.strokes[strokeIndex];
+      ctx.globalAlpha = connection.detached.includes(strokeIndex) ? 0.28 : 1;
       ctx.beginPath();
       s.points.forEach((p, i) =>
         i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y),
@@ -92,6 +101,7 @@ function Pad({
       ctx.lineWidth = s.width;
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
     const anchor =
       d.strokes.length || d.anchorManual
         ? kind === "body" && !d.anchorManual
@@ -165,18 +175,20 @@ function Pad({
     if (tool === "anchor")
       erased.current = { ...value, anchor: p, anchorManual: true };
     if (performance.now() - lastLive.current > 45) {
-      onLive(
+      let snapshot =
         erased.current ||
-          drawing(
-            [
-              ...value.strokes,
-              ...(active.current
-                ? [{ ...active.current, points: [...active.current.points] }]
-                : []),
-            ],
-            kind,
-          ),
-      );
+        drawing(
+          [
+            ...value.strokes,
+            ...(active.current
+              ? [{ ...active.current, points: [...active.current.points] }]
+              : []),
+          ],
+          kind,
+        );
+      if (value.anchorManual && tool !== "anchor")
+        snapshot = { ...snapshot, anchor: value.anchor, anchorManual: true };
+      onLive(snapshot);
       lastLive.current = performance.now();
     }
     paint();
@@ -260,6 +272,7 @@ export default function Workshop({
   const kind = parts[step],
     current = live || values[kind];
   const draft = { ...snake, parts: { ...values, [kind]: current } },
+    connections = snakeConnections(draft),
     stats = analyze(draft),
     rig = snakeRig(draft),
     ink = inkArea(current.strokes),
@@ -307,7 +320,11 @@ export default function Workshop({
           >
             <span>{i + 1}</span>
             {names[p]}
-            {values[p].strokes.length > 0 && <small>✓</small>}
+            {values[p].strokes.length > 0 && (
+              <small>
+                {drawingConnection(values[p]).connected ? "✓" : "!"}
+              </small>
+            )}
           </button>
         ))}
       </nav>
@@ -452,6 +469,18 @@ export default function Workshop({
               : "원하는 모양 그대로, 자유롭게!"}
         </span>
       </div>
+      {!connections.reports[kind].missing &&
+        !connections.reports[kind].connected && (
+          <p className="connection-warning" role="alert">
+            {names[kind]} 부위가 떨어져 있습니다. 흐린 선을 이어 붙이거나
+            연결점을 선 위로 옮겨 주세요.
+          </p>
+        )}
+      {step === 2 && connections.invalid.some((p) => p !== kind) && (
+        <p className="connection-warning" role="alert">
+          {connections.message}
+        </p>
+      )}
       <div className="arcade-bottom">
         <button onClick={onHome}>내 뱀</button>
         <button
@@ -459,7 +488,7 @@ export default function Workshop({
           disabled={
             step < 2
               ? !values[kind].strokes.length
-              : Object.values(values).some((p) => !p.strokes.length)
+              : !snakeConnections({ ...snake, parts: values }).connected
           }
           onClick={() => (step < 2 ? switchPart(step + 1) : onAssemble())}
         >

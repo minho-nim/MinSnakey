@@ -696,3 +696,122 @@ test("NPC equipment matching narrows a slow snake race gap without changing play
 });
 
 import { snakeExtents } from "../src/render";
+
+import { drawingConnection, snakeConnections } from "../src/connectivity";
+test("separate body segments block races until a real connecting stroke is drawn", () => {
+  const snake = sampleSnake(),
+    parts = [
+      {
+        points: [
+          { x: 20, y: 180 },
+          { x: 180, y: 180 },
+        ],
+        width: 10,
+        color: "#365939",
+      },
+      {
+        points: [
+          { x: 260, y: 180 },
+          { x: 400, y: 180 },
+        ],
+        width: 10,
+        color: "#365939",
+      },
+    ];
+  snake.parts.body = drawing(parts, "body");
+  assert.deepEqual(drawingConnection(snake.parts.body).detached, [1]);
+  assert.match(snakeConnections(snake).message, /몸통 부위가 떨어져 있습니다/);
+  assert.throws(() => createRace(snake, "auto"), /몸통/);
+  snake.parts.body = drawing(
+    [
+      ...parts,
+      {
+        points: [
+          { x: 175, y: 180 },
+          { x: 265, y: 180 },
+        ],
+        width: 10,
+        color: "#365939",
+      },
+    ],
+    "body",
+  );
+  assert.ok(snakeConnections(snake).connected);
+  assert.doesNotThrow(() => createRace(snake, "auto"));
+});
+test("sparse crossing segments connect, but a moved anchor off ink detaches the part", () => {
+  const d = drawing(
+    [
+      {
+        points: [
+          { x: 20, y: 100 },
+          { x: 400, y: 100 },
+        ],
+        width: 6,
+        color: "#365939",
+      },
+      {
+        points: [
+          { x: 210, y: 20 },
+          { x: 210, y: 200 },
+        ],
+        width: 6,
+        color: "#365939",
+      },
+    ],
+    "body",
+  );
+  assert.ok(drawingConnection(d).connected);
+  const off = { ...d, anchor: { x: 450, y: 300 }, anchorManual: true };
+  assert.equal(drawingConnection(off).anchorAttached, false);
+  assert.deepEqual(drawingConnection(off).detached, [0, 1]);
+});
+test("eyes within closed heads remain valid while floating outside details are detached", () => {
+  const snake = sampleSnake();
+  assert.ok(snakeConnections(snake).connected);
+  const head = snake.parts.head;
+  const floating = {
+    points: [
+      { x: 300, y: 30 },
+      { x: 320, y: 30 },
+    ],
+    width: 5,
+    color: "#365939",
+  };
+  const altered = { ...head, strokes: [...head.strokes, floating] };
+  assert.deepEqual(drawingConnection(altered).detached, [head.strokes.length]);
+  for (let i = 0; i < 4; i++)
+    assert.ok(snakeConnections(sampleSnake(i)).connected);
+});
+test("partial erasing can break connectivity and restoring the bridge repairs it without data loss", () => {
+  const original = [
+    {
+      points: [
+        { x: 10, y: 100 },
+        { x: 400, y: 100 },
+      ],
+      width: 8,
+      color: "#365939",
+    },
+  ];
+  const erased = eraseStrokes(original, { x: 210, y: 100 }, 18);
+  assert.equal(drawingConnection(drawing(erased, "body")).connected, false);
+  assert.equal(drawingConnection(drawing(original, "body")).connected, true);
+  assert.equal(original[0].points.length, 2);
+});
+
+test("a tiny body dot cannot leave the actual head or tail attachment floating", () => {
+  const snake = sampleSnake();
+  snake.parts.body = drawing(
+    [{ points: [{ x: 200, y: 200 }], width: 3, color: "#365939" }],
+    "body",
+  );
+  assert.equal(drawingConnection(snake.parts.body).connected, true);
+  assert.equal(snakeConnections(snake).connected, false);
+  assert.throws(() => createRace(snake, "auto"), /몸통/);
+  snake.parts.body = drawing(
+    [{ points: [{ x: 200, y: 200 }], width: 24, color: "#365939" }],
+    "body",
+  );
+  assert.ok(snakeConnections(snake).connected);
+});

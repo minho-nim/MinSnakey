@@ -3236,3 +3236,17 @@ meter::-webkit-meter-optimum-value {
   color: #718052;
   margin: 10px 0 14px;
 }
+.connection-warning {
+  padding: 12px 14px;
+  border: 2px solid #b66c3f;
+  border-radius: 10px;
+  background: #fff0d5;
+  color: #8b3d27;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.start-button:disabled,
+.next-draw:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

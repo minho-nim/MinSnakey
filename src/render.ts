@@ -1,3 +1,4 @@
+import { drawingConnection, snakeConnections } from "./connectivity";
 import {
   terrainAt,
   waterZonesFor,
@@ -29,10 +30,14 @@ function strokes(
   part: Drawing,
   map: (p: Point) => Point,
   scale: number,
+  opacity: (index: number) => number = () => 1,
 ) {
+  const alpha = ctx.globalAlpha;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  for (const s of part.strokes) {
+  for (let index = 0; index < part.strokes.length; index++) {
+    const s = part.strokes[index];
+    ctx.globalAlpha = alpha * opacity(index);
     if (!s.points.length) continue;
     ctx.beginPath();
     s.points.forEach((p, i) => {
@@ -48,6 +53,7 @@ function strokes(
     ctx.lineWidth = Math.max(1, s.width * scale);
     ctx.stroke();
   }
+  ctx.globalAlpha = alpha;
 }
 export function drawSnake(
   ctx: CanvasRenderingContext2D,
@@ -67,6 +73,10 @@ export function drawSnake(
       { ...body, strokes: [{ ...stroke, points }] },
       (p) => ({ x: x + p.x * scale, y: y + p.y * scale }),
       rig.scale * scale,
+      () =>
+        snakeConnections(r.snake).reports.body.detached.includes(strokeIndex)
+          ? 0.28
+          : 1,
     );
   });
   function part(kind: "head" | "tail") {
@@ -88,6 +98,7 @@ export function drawSnake(
         };
       },
       ratio * scale,
+      (i) => (drawingConnection(drawing).detached.includes(i) ? 0.28 : 1),
     );
   }
   part("tail");
