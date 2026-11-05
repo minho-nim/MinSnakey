@@ -554,7 +554,7 @@ export default function Workshop({
         </p>
       )}
       {startError && <p className="drawing-start-error" role="alert">{startError}</p>}
-      <details open
+      <details
         className="part-draw-guide"
         aria-label={`${names[kind]} 그리기 참고`}
       >

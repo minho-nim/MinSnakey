@@ -775,29 +775,6 @@ export default function App() {
             <span className="eyebrow">HELLO, LITTLE RACER</span>
             <h1>반가워, 나의 꼬물이!</h1>
             <p className="muted">내가 그린 선이 움직이기 시작했어요.</p>
-            <div className="assembled">
-              <Preview snake={snake} />
-              <span className="tag">
-                {snakeConnections(snake).connected
-                  ? "머리 + 몸통 + 꼬리 · 연결 완료"
-                  : "연결을 확인해 주세요"}
-              </span>
-            </div>
-            <label className="name-field">
-              꼬물이 이름
-              <input
-                maxLength={24}
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder="이름을 지어주세요"
-              />
-            </label>
-            {!snakeConnections(snake).connected && (
-              <p className="connection-warning" role="alert">
-                {snakeConnections(snake).message}
-              </p>
-            )}
-            <AbilityPanel stats={stat} />
             <div className="center-actions">
               <button className="secondary" onClick={() => edit()}>
                 그림 수정
@@ -823,6 +800,30 @@ export default function App() {
                 경기 준비하러 →
               </button>
             </div>
+            <div className="assembled">
+              <Preview snake={snake} />
+              <span className="tag">
+                {snakeConnections(snake).connected
+                  ? "머리 + 몸통 + 꼬리 · 연결 완료"
+                  : "연결을 확인해 주세요"}
+              </span>
+            </div>
+            <label className="name-field">
+              꼬물이 이름
+              <input
+                maxLength={24}
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="이름을 지어주세요"
+              />
+            </label>
+            {!snakeConnections(snake).connected && (
+              <p className="connection-warning" role="alert">
+                {snakeConnections(snake).message}
+              </p>
+            )}
+            <AbilityPanel stats={stat} />
+
           </section>
         )}
         {page === "prepare" && (
@@ -855,6 +856,19 @@ export default function App() {
                 있어요.
               </p>
             )}
+                <div className="start-area">
+                  <span>
+                    {courseInfo(course).name} · 4마리 ·{" "}
+                    {mode === "auto" ? "자동" : "수동"} 달리기
+                  </span>
+                  <button
+                    className="primary start-button"
+                    disabled={!snakeConnections(snake).connected}
+                    onClick={start}
+                  >
+                    {incoming ? "도전 시작" : "경주 시작"} <span>→</span>
+                  </button>
+                </div>
             <div className="prepare-grid">
               <div className="racer-profile">
                 <span className="eyebrow">YOUR RACER</span>
@@ -998,19 +1012,7 @@ export default function App() {
                 <p className="small muted">
                   경기가 시작되면 조작 방식을 바꿀 수 없어요.
                 </p>
-                <div className="start-area">
-                  <span>
-                    {courseInfo(course).name} · 4마리 ·{" "}
-                    {mode === "auto" ? "자동" : "수동"} 달리기
-                  </span>
-                  <button
-                    className="primary start-button"
-                    disabled={!snakeConnections(snake).connected}
-                    onClick={start}
-                  >
-                    {incoming ? "도전 시작" : "경주 시작"} <span>→</span>
-                  </button>
-                </div>
+
               </div>
             </div>
           </section>
@@ -1040,6 +1042,71 @@ export default function App() {
               {courseInfo(course).name} · {mode === "auto" ? "자동" : "수동"}{" "}
               모드
             </p>
+            <div className="center-actions">
+              <button className="primary" onClick={start}>
+                다시 달리기 ↻
+              </button>
+              <button className="secondary" onClick={() => edit()}>
+                내 뱀 수정
+              </button>
+            </div>
+            {race.racers[0].finish !== null && (
+              <div className="share-challenge">
+                <label className="taunt-picker">
+                  친구에게 한마디
+                  <select
+                    aria-label="도전 문구"
+                    value={taunt}
+                    onChange={(e) => {
+                      setTaunt(+e.target.value);
+                      setShareURL("");
+                      setSharePreview("");
+                    }}
+                  >
+                    {TAUNTS.map((t, i) => (
+                      <option key={t.title} value={i}>
+                        {t.title} {t.subtitle}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button
+                  className="primary"
+                  disabled={sharing}
+                  onClick={createChallenge}
+                >
+                  {sharing ? "도전장 만드는 중…" : "친구에게 도전장 보내기 ↗"}
+                </button>
+                {shareURL && (
+                  <div className="share-link-box">
+                    <div className="social-card-preview">
+                      <img
+                        src={sharePreview}
+                        alt="내 뱀과 도발 문구가 담긴 공유 썸네일"
+                      />
+                    </div>
+
+                    <label>
+                      친구에게 보낼 도전 링크
+                      <input
+                        aria-label="친구 도전 링크"
+                        readOnly
+                        value={shareURL}
+                        onClick={(e) => e.currentTarget.select()}
+                      />
+                    </label>
+                    <button className="secondary" onClick={copyChallenge}>
+                      링크 복사
+                    </button>
+                    <p>
+                      이 링크를 카톡에 붙이면 내 뱀과 도전 문구가 썸네일로
+                      보여요. 누르면 GitHub 게임의 도전 화면으로 이동해요.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="result-hero">
               <Preview snake={snake} />
               <div>
@@ -1115,14 +1182,7 @@ export default function App() {
             {race.timedOut && (
               <p className="muted">90초 제한 시간이 지나 경기가 종료됐어요.</p>
             )}
-            <div className="center-actions">
-              <button className="primary" onClick={start}>
-                다시 달리기 ↻
-              </button>
-              <button className="secondary" onClick={() => edit()}>
-                내 뱀 수정
-              </button>
-            </div>
+
             {race.challenge && (
               <div className="challenge-verdict">
                 {race.racers[0].finish === null
@@ -1133,63 +1193,6 @@ export default function App() {
                     : race.racers[0].finish! < race.racers[1].finish!
                       ? `도전 성공! 친구보다 ${(race.racers[1].finish! - race.racers[0].finish!).toFixed(2)}초 빨랐어요!`
                       : `친구의 기록까지 ${(race.racers[0].finish! - race.racers[1].finish!).toFixed(2)}초! 다시 도전해 보세요.`}
-              </div>
-            )}
-            {race.racers[0].finish !== null && (
-              <div className="share-challenge">
-                <label className="taunt-picker">
-                  친구에게 한마디
-                  <select
-                    aria-label="도전 문구"
-                    value={taunt}
-                    onChange={(e) => {
-                      setTaunt(+e.target.value);
-                      setShareURL("");
-                      setSharePreview("");
-                    }}
-                  >
-                    {TAUNTS.map((t, i) => (
-                      <option key={t.title} value={i}>
-                        {t.title} {t.subtitle}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <button
-                  className="primary"
-                  disabled={sharing}
-                  onClick={createChallenge}
-                >
-                  {sharing ? "도전장 만드는 중…" : "친구에게 도전장 보내기 ↗"}
-                </button>
-                {shareURL && (
-                  <div className="share-link-box">
-                    <div className="social-card-preview">
-                      <img
-                        src={sharePreview}
-                        alt="내 뱀과 도발 문구가 담긴 공유 썸네일"
-                      />
-                    </div>
-
-                    <label>
-                      친구에게 보낼 도전 링크
-                      <input
-                        aria-label="친구 도전 링크"
-                        readOnly
-                        value={shareURL}
-                        onClick={(e) => e.currentTarget.select()}
-                      />
-                    </label>
-                    <button className="secondary" onClick={copyChallenge}>
-                      링크 복사
-                    </button>
-                    <p>
-                      이 링크를 카톡에 붙이면 내 뱀과 도전 문구가 썸네일로
-                      보여요. 누르면 GitHub 게임의 도전 화면으로 이동해요.
-                    </p>
-                  </div>
-                )}
               </div>
             )}
             <div className="result-links">
