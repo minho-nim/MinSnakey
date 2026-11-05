@@ -3546,3 +3546,15 @@ meter::-webkit-meter-optimum-value {
 .workshop .paper-heading .part-tabs { width: auto; justify-content: center; gap: 4px; }
 .workshop .paper-heading .part-tabs button { flex: 0 0 auto; width: 42px; min-height: 27px; padding: 3px 0; display: inline-flex; align-items: center; justify-content: center; text-align: center; line-height: 18px; }
 .workshop > details.part-draw-guide { margin: 4px 0 8px; }
+
+/* One shared outer edge across the drawing workflow. */
+.workshop > .live-ability-strip,
+.workshop > .arcade-tools,
+.workshop > .creation-stage,
+.workshop > .arcade-bottom,
+.workshop > .shape-readout,
+.workshop > details { width: 100%; max-width: none; box-sizing: border-box; margin-left: 0; margin-right: 0; }
+.workshop > .arcade-tools { justify-content: stretch; }
+.workshop .live-ability-strip > .full-ability-panel { grid-column: 1 / -1; width: 100%; box-sizing: border-box; margin: 0; padding: 4px 0 0; border: 0; border-top: 1px solid #c8c9a5; border-radius: 0; background: transparent; }
+.workshop .live-ability-strip > .full-ability-panel > summary { text-align: center; font-size: 11px; padding: 4px; }
+.workshop .full-ability-panel > .ability-panel { margin: 6px 0 0; width: 100%; box-sizing: border-box; }

@@ -413,8 +413,8 @@ export default function Workshop({
             </strong>
           </div>
         ))}
-      </div>
       <details className="compact-panel full-ability-panel"><summary>전체 능력치 보기</summary><AbilityPanel stats={stats} compact /></details>
+      </div>
       <div className="arcade-tools">
         <button onClick={undo} disabled={!history.current[kind].length}>
           ↶ 되돌리기

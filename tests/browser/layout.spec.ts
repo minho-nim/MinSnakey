@@ -6,6 +6,9 @@ for (const width of [320, 390, 768, 1280]) test(`compact layout at ${width}px`, 
  const canvas=page.getByLabel('머리 그리기 캔버스'); await expect(canvas).toBeVisible();
  expect((await canvas.boundingBox())!.y).toBeLessThan(480);
  await page.screenshot({path:`/tmp/minsnakey-draw-${width}.png`,fullPage:true});
+ const edges=await page.locator('.workshop > .live-ability-strip, .workshop > .creation-stage, .workshop > .arcade-bottom, .workshop > .shape-readout, .workshop > details').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {left:r.left,right:r.right};}));
+ for(const edge of edges){expect(Math.abs(edge.left-edges[0].left)).toBeLessThan(1);expect(Math.abs(edge.right-edges[0].right)).toBeLessThan(1);}
+ await expect(page.locator('.live-ability-strip').getByText('전체 능력치 보기',{exact:true})).toBeVisible();
  const tips=page.locator('details.part-draw-guide'); await expect(tips).toHaveAttribute('open','');
  expect((await tips.boundingBox())!.y).toBeGreaterThan((await canvas.boundingBox())!.y);
  expect((await tips.boundingBox())!.y).toBeLessThan((await page.locator(".arcade-bottom").boundingBox())!.y);
