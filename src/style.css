@@ -3509,3 +3509,6 @@ meter::-webkit-meter-optimum-value {
 .workshop > .live-ability-strip, .workshop > .shape-readout { margin-bottom: 8px; }
 .workshop { padding-bottom: 16px; }
 .workshop-pad { touch-action: none; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* The drawing screen already has its own prominent brand heading. */
+.game-shell.page-draw > .site-header { display: none; }
+.game-shell.page-draw > .stadium-scenery { top: 0; }
