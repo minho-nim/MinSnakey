@@ -3512,3 +3512,13 @@ meter::-webkit-meter-optimum-value {
 /* The drawing screen already has its own prominent brand heading. */
 .game-shell.page-draw > .site-header { display: none; }
 .game-shell.page-draw > .stadium-scenery { top: 0; }
+
+.workshop { overflow-anchor: none; }
+.workshop .paper-heading { height: auto; min-height: 38px; gap: 4px; padding: 4px 6px; }
+.workshop .paper-heading .part-tabs { margin: 0; gap: 3px; flex: 1; justify-content: flex-start; }
+.workshop .paper-heading .part-tabs button { min-height: 28px; padding: 3px 6px; font-size: 10px; gap: 3px; border-width: 1px; box-shadow: none; }
+.workshop .paper-heading .part-tabs button > span { display: none; }
+.workshop .paper-heading > button { flex-shrink: 0; padding: 4px; }
+.workshop > .arcade-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.workshop > .arcade-tools button { padding: 5px 3px; font-size: 10px; }
+.workshop .live-part-traits { min-height: 32px; line-height: 16px; }

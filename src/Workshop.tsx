@@ -58,6 +58,17 @@ function Pad({
     pointer = useRef<number | null>(null),
     cursor = useRef<Point | null>(null),
     lastLive = useRef(0);
+  useEffect(() => {
+    const preventScroll = (event: Event) => {
+      if (pointer.current !== null && event.cancelable) event.preventDefault();
+    };
+    document.addEventListener("touchmove", preventScroll, { passive: false });
+    document.addEventListener("wheel", preventScroll, { passive: false });
+    return () => {
+      document.removeEventListener("touchmove", preventScroll);
+      document.removeEventListener("wheel", preventScroll);
+    };
+  }, []);
   const paint = () => {
     if (!canvas.current) return;
     const { ctx, w, h } = fitCanvas(canvas.current);
@@ -385,6 +396,30 @@ export default function Workshop({
           <Brand large />
         </h1>
       </div>
+      <div className="arcade-tools">
+        <button onClick={undo} disabled={!history.current[kind].length}>
+          ↶ 되돌리기
+        </button>
+        <button
+          aria-pressed={tool === "eraser"}
+          onClick={() => setTool(tool === "eraser" ? "pen" : "eraser")}
+        >
+          ▱ 지우개
+        </button>
+        <button className="danger" onClick={() => commit(drawing([], kind))}>
+          이 부위 지우기
+        </button>
+        <button className="danger" onClick={() => {
+          const empty = { ...values };
+          for (const part of parts) {
+            history.current[part] = [...history.current[part], values[part]].slice(-40);
+            empty[part] = drawing([], part);
+          }
+          setLive(null); setStartError(""); setTool("pen"); onChange(empty);
+        }}>전체 초기화</button>
+      </div>
+      <div className="creation-stage">
+        <div className="paper-heading">
       <nav className="part-tabs" aria-label="그리기 단계">
         {parts.map((p, i) => (
           <button
@@ -403,26 +438,6 @@ export default function Workshop({
           </button>
         ))}
       </nav>
-      <div className="arcade-tools">
-        <button onClick={undo} disabled={!history.current[kind].length}>
-          ↶ 되돌리기
-        </button>
-        <button
-          aria-pressed={tool === "eraser"}
-          onClick={() => setTool(tool === "eraser" ? "pen" : "eraser")}
-        >
-          ▱ 지우개
-        </button>
-        <button className="danger" onClick={() => commit(drawing([], kind))}>
-          다시 그리기
-        </button>
-      </div>
-      <div className="creation-stage">
-        <div className="paper-heading">
-          <span>
-            <b>{names[kind]} 그리기</b>
-            <small>{step + 1} / 3</small>
-          </span>
           <button
             title="샘플 넣기"
             onClick={() => commit(sampleSnake().parts[kind])}
@@ -576,9 +591,7 @@ export default function Workshop({
           ))}
         </div>
         <small>{PART_DRAW_TIPS[kind].note}</small>
-        {!!current.strokes.length && (
-          <p>{partTraitLabels(stats, kind).join(" · ")}</p>
-        )}
+        <p className="live-part-traits">{current.strokes.length ? partTraitLabels(stats, kind).join(" · ") : "그리면 현재 부위의 특성이 표시돼요"}</p>
       </details>
       <details className="assembly-peek">
         <summary>
