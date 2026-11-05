@@ -147,7 +147,7 @@ test("drawing desk supports partial erasing, undo, live stats and movable connec
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page.getByRole("button", { name: "전체 삭제", exact: true }).click();
+  await page.getByRole("button", { name: "다시 그리기", exact: true }).click();
   await expect(page.getByLabel("그림 분석")).toContainText("아직 빈 종이");
   await expect(page.getByRole("button", { name: /^다음/ })).toBeDisabled();
 });

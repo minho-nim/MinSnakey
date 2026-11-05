@@ -410,7 +410,7 @@ export default function Workshop({
           ▱ 지우개
         </button>
         <button className="danger" onClick={() => commit(drawing([], kind))}>
-          전체 삭제
+          다시 그리기
         </button>
       </div>
       <div className="creation-stage">
@@ -559,11 +559,12 @@ export default function Workshop({
               : `${names[kind]} 완성 중! 크기도 무게에 반영돼요`}
         </strong>
       </div>
-      <details
+      <details open
         className="part-draw-guide"
         aria-label={`${names[kind]} 그리기 참고`}
       >
-        <summary>{PART_DRAW_TIPS[kind].title} · 그리기 팁</summary>
+        <summary>힌트 보기</summary>
+        <b>{PART_DRAW_TIPS[kind].title}</b>
         <small>점선 크기로 그리면 NPC와 비슷한 체급이에요.</small>
         <div>
           {PART_DRAW_TIPS[kind].tips.map((tip) => (

@@ -4,9 +4,11 @@ for (const width of [320, 390, 768, 1280]) test(`compact layout at ${width}px`, 
  const fits = async () => expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
  await page.goto('/'); await fits();
  const canvas=page.getByLabel('머리 그리기 캔버스'); await expect(canvas).toBeVisible();
- expect((await canvas.boundingBox())!.y).toBeLessThan(350);
+ expect((await canvas.boundingBox())!.y).toBeLessThan(480);
  await page.screenshot({path:`/tmp/minsnakey-draw-${width}.png`,fullPage:true});
- const tips=page.locator('details.part-draw-guide'); await expect(tips).not.toHaveAttribute('open');
+ const tips=page.locator('details.part-draw-guide'); await expect(tips).toHaveAttribute('open','');
+ expect((await tips.boundingBox())!.y).toBeLessThan((await canvas.boundingBox())!.y);
+ await tips.locator('summary').click(); await expect(tips).not.toHaveAttribute('open');
  await tips.locator('summary').click(); await expect(tips).toHaveAttribute('open',''); await fits();
  await page.getByText('연결점 설정',{exact:true}).click(); await expect(page.getByRole('button',{name:/연결점 옮기기/})).toBeVisible(); await fits();
  await page.getByRole('button',{name:'샘플 경기',exact:true}).click(); await fits();
