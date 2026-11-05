@@ -299,6 +299,7 @@ export default function Workshop({
   onStep,
   onChange,
   onAssemble,
+  onQuickStart,
   onHome,
   onSample,
 }: {
@@ -308,6 +309,7 @@ export default function Workshop({
   onStep: (s: number) => void;
   onChange: (p: Record<PartName, Drawing>) => void;
   onAssemble: () => void;
+  onQuickStart: () => void;
   onHome: () => void;
   onSample: () => void;
 }) {
@@ -315,6 +317,22 @@ export default function Workshop({
     [color, setColor] = useState(colors[0]),
     [width, setWidth] = useState(10),
     [live, setLive] = useState<Drawing | null>(null);
+  const [startError, setStartError] = useState("");
+  useEffect(() => {
+    if (!startError) return;
+    const timer = window.setTimeout(() => setStartError(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [startError]);
+  const quickStart = () => {
+    const missing = parts.filter(p => !values[p].strokes.length);
+    const check = snakeConnections({ ...snake, parts: values });
+    if (missing.length || !check.connected) {
+      setStartError(missing.length ? missing.map(p => `${names[p]}${p === "body" ? "이" : "가"} 안 그려졌어요!`).join(" ") : check.message);
+      return;
+    }
+    setStartError("");
+    onQuickStart();
+  };
   const history = useRef<Record<PartName, Drawing[]>>({
     head: [],
     body: [],
@@ -479,6 +497,7 @@ export default function Workshop({
           {connections.message}
         </p>
       )}
+      {startError && <p className="drawing-start-error" role="alert">{startError}</p>}
       <div className="arcade-bottom">
         <button onClick={onHome}>내 뱀</button>
         <button
@@ -493,6 +512,7 @@ export default function Workshop({
           {step < 2 ? "다음" : "조립!"} <span>▶</span>
         </button>
         <button onClick={onSample}>샘플 경기</button>
+        <button className="quick-start" onClick={quickStart}>바로 시작 ▶</button>
       </div>
       <div className="live-ability-strip" aria-label="실시간 주요 능력치">
         {(

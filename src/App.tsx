@@ -548,7 +548,7 @@ export default function App() {
     setPage("draw");
     window.scrollTo(0, 0);
   };
-  const saveSnake = () => {
+  const saveSnake = (quick = false) => {
     const check = snakeConnections({ ...snake, parts: editParts });
     if (!check.connected) {
       notify(check.message);
@@ -567,7 +567,12 @@ export default function App() {
         20,
       ),
     });
-    setPage("preview");
+    if (quick) {
+      setShareURL("");
+      setRace(createRace(value, mode, course, incoming, crypto.getRandomValues(new Uint32Array(1))[0] || 1));
+      setPage("race");
+      window.scrollTo(0, 0);
+    } else setPage("preview");
   };
   const start = () => {
     const check = snakeConnections(snake);
@@ -767,7 +772,8 @@ export default function App() {
             step={step}
             onStep={setStep}
             onChange={setEditParts}
-            onAssemble={saveSnake}
+            onAssemble={() => saveSnake()}
+            onQuickStart={() => saveSnake(true)}
             onHome={() => setPage("home")}
             onSample={() => prepare(sampleSnake())}
           />
