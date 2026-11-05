@@ -494,6 +494,28 @@ export default function Workshop({
             <span>{width}</span>
           </label>
         </div>
+      <details className="compact-panel"><summary>연결점 설정</summary>
+      <div className="workshop-options">
+        <button onClick={() => commit(drawing(current.strokes, kind))}>
+          연결점 자동 맞춤
+        </button>
+
+        <button
+          aria-pressed={tool === "anchor"}
+          onClick={() => setTool(tool === "anchor" ? "pen" : "anchor")}
+        >
+          {kind === "body" ? "머리 연결점 설정" : `⊙ 연결점 ${tool === "anchor" ? "이동 중" : "옮기기"}`}
+        </button>
+        {kind === "body" && <button aria-pressed={tool === "tail-anchor"} onClick={() => setTool(tool === "tail-anchor" ? "pen" : "tail-anchor")}>꼬리 연결점 설정</button>}
+        <span>
+          {tool === "tail-anchor" ? "몸통에서 꼬리를 붙일 곳을 눌러 주세요" : tool === "anchor"
+            ? "종이를 눌러 연결할 자리를 정해요"
+            : tool === "eraser"
+              ? "문지르면 지나간 부분만 지워져요"
+              : "원하는 모양 그대로, 자유롭게!"}
+        </span>
+      </div>
+      </details>
       </div>
       {kind === "head" && connections.reports.head.eyes.length > 0 && (
         <p className="class-note" role="status">
@@ -599,28 +621,7 @@ export default function Workshop({
           aria-label="그린 뱀 실시간 조립 미리보기"
         />
       </details>
-      <details className="compact-panel"><summary>연결점 설정</summary>
-      <div className="workshop-options">
-        <button onClick={() => commit(drawing(current.strokes, kind))}>
-          연결점 자동 맞춤
-        </button>
 
-        <button
-          aria-pressed={tool === "anchor"}
-          onClick={() => setTool(tool === "anchor" ? "pen" : "anchor")}
-        >
-          ⊙ 연결점 {tool === "anchor" ? "이동 중" : "옮기기"}
-        </button>
-        {kind === "body" && <button aria-pressed={tool === "tail-anchor"} onClick={() => setTool(tool === "tail-anchor" ? "pen" : "tail-anchor")}>꼬리 연결점 설정</button>}
-        <span>
-          {tool === "tail-anchor" ? "몸통에서 꼬리를 붙일 곳을 눌러 주세요" : tool === "anchor"
-            ? "종이를 눌러 연결할 자리를 정해요"
-            : tool === "eraser"
-              ? "문지르면 지나간 부분만 지워져요"
-              : "원하는 모양 그대로, 자유롭게!"}
-        </span>
-      </div>
-      </details>
       {Object.values(draft.parts).some((p) => p.strokes.length) && (
         <details className="compact-panel"><summary>전체 능력치 보기</summary><AbilityPanel stats={stats} compact /></details>
       )}

@@ -3528,3 +3528,11 @@ meter::-webkit-meter-optimum-value {
 .workshop .paper-heading .part-tabs { justify-content: center; gap: 3px; }
 .workshop .paper-heading .part-tabs button { min-height: 25px; padding: 3px 7px; border-radius: 8px; font-size: 10px; }
 .workshop .paper-heading > button { justify-self: end; font-size: 9px; }
+
+.workshop .paper-heading { grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; }
+.workshop .paper-heading .part-tabs { width: 100%; display: flex; }
+.workshop .paper-heading .part-tabs button { flex: 1; padding: 4px 5px; min-height: 28px; }
+.workshop .creation-stage > .compact-panel { margin: 0; border: 0; border-top: 1px solid #ddd5c2; border-radius: 0; padding: 6px 10px; }
+.workshop .creation-stage .workshop-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.workshop .creation-stage .workshop-options button { min-height: 32px; padding: 5px; }
+.workshop .creation-stage .workshop-options > span { grid-column: 1 / -1; }
