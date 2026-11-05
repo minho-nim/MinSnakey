@@ -271,6 +271,7 @@ function Pad({
           (tool === "pen" && value.strokes.length >= 100)
         )
           return;
+        if (e.cancelable) e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
         pointer.current = e.pointerId;
         const p = point(e);
@@ -279,7 +280,10 @@ function Pad({
       }}
       onPointerMove={(e) => {
         cursor.current = point(e);
-        if (pointer.current === e.pointerId) update(cursor.current);
+        if (pointer.current === e.pointerId) {
+          if (e.cancelable) e.preventDefault();
+          update(cursor.current);
+        }
         else paint();
       }}
       onPointerUp={finish}

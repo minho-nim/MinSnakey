@@ -3489,3 +3489,23 @@ meter::-webkit-meter-optimum-value {
 .workshop > .part-draw-guide > div { gap: 4px; margin: 5px 0; }
 .workshop > .part-draw-guide small { font-size: 10px; line-height: 1.4; }
 .workshop > .part-draw-guide p { margin: 5px 0 0; font-size: 11px; }
+
+/* Reduce drawing-screen whitespace while preserving the canvas proportions. */
+.workshop > .arcade-title { padding: 3px 0 6px; }
+.workshop > .arcade-title .brand-lockup-large .brand-logo { width: 34px; height: 34px; }
+.workshop > .arcade-title h1 { font-size: clamp(24px, 6vw, 30px); }
+.workshop > .part-tabs, .workshop > .arcade-tools { margin-bottom: 3px; }
+.workshop > details.part-draw-guide { padding: 5px 9px; margin: 2px 0 6px; }
+.workshop > .part-draw-guide > summary { padding: 2px 0; }
+.workshop > .part-draw-guide > div { margin: 3px 0; }
+.workshop > .part-draw-guide p { margin-top: 3px; }
+.workshop .paper-heading { height: 32px; padding: 0 10px; }
+.workshop .paper-footer { padding: 7px 10px; gap: 6px; }
+.workshop .canvas-instruction { padding: 4px; gap: 0; }
+.workshop .canvas-instruction b { padding: 2px 6px; }
+.workshop .canvas-instruction > span { display: none; }
+.workshop > .creation-stage { margin-bottom: 10px; }
+.workshop > .arcade-bottom { margin: 2px 0 10px; gap: 6px; }
+.workshop > .live-ability-strip, .workshop > .shape-readout { margin-bottom: 8px; }
+.workshop { padding-bottom: 16px; }
+.workshop-pad { touch-action: none; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
