@@ -20,7 +20,7 @@ test("draw three parts, assemble, save, run race to finish and persist record", 
       );
     await page.mouse.up();
     await page
-      .getByRole("button", { name: name === "꼬리" ? /조립!/ : /^다음/ })
+      .getByRole("button", { name: name === "꼬리" ? /조립!/ : /^다음 ▶$/ })
       .click();
   }
   await expect(
@@ -149,7 +149,7 @@ test("drawing desk supports partial erasing, undo, live stats and movable connec
   ).toBe(true);
   await page.getByRole("button", { name: "다시 그리기", exact: true }).click();
   await expect(page.getByLabel("그림 분석")).toContainText("아직 빈 종이");
-  await expect(page.getByRole("button", { name: /^다음/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /^다음 ▶$/ })).toBeDisabled();
 });
 
 test("mobile touch strokes reach the drawing desk without scrolling the page", async ({
@@ -181,7 +181,7 @@ test("mobile touch strokes reach the drawing desk without scrolling the page", a
     type: "touchEnd",
     touchPoints: [],
   });
-  await expect(page.getByRole("button", { name: /^다음/ })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /^다음 ▶$/ })).toBeEnabled();
   expect(await page.evaluate(() => scrollY)).toBe(0);
   expect(errors).toEqual([]);
   await context.close();
@@ -332,7 +332,7 @@ test("shared challenge opens in a fresh browser and races the actual opponent re
   for (let i = 0; i < 3; i++) {
     await friend.getByRole("button", { name: "샘플 ＋" }).click();
     await friend
-      .getByRole("button", { name: i < 2 ? /^다음/ : /조립!/ })
+      .getByRole("button", { name: i < 2 ? /^다음 ▶$/ : /조립!/ })
       .click();
   }
   await friend.getByRole("textbox").fill("친구의 새 꼬물이");
