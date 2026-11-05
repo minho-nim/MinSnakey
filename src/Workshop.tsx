@@ -420,21 +420,17 @@ export default function Workshop({
       </div>
       <div className="creation-stage">
         <div className="paper-heading">
+          <b className="part-heading-label">{names[kind]} 그리기</b>
       <nav className="part-tabs" aria-label="그리기 단계">
         {parts.map((p, i) => (
           <button
             key={p}
+            data-drawn={values[p].strokes.length > 0}
             aria-pressed={step === i}
             className={step === i ? "chosen" : ""}
             onClick={() => switchPart(i)}
           >
-            <span>{i + 1}</span>
             {names[p]}
-            {values[p].strokes.length > 0 && (
-              <small>
-                {drawingConnection(values[p], p).connected ? "✓" : "!"}
-              </small>
-            )}
           </button>
         ))}
       </nav>

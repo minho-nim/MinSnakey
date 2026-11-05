@@ -3522,3 +3522,9 @@ meter::-webkit-meter-optimum-value {
 .workshop > .arcade-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
 .workshop > .arcade-tools button { padding: 5px 3px; font-size: 10px; }
 .workshop .live-part-traits { min-height: 32px; line-height: 16px; }
+
+.workshop .paper-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 4px; min-height: 34px; }
+.workshop .paper-heading .part-heading-label { font-size: 10px; white-space: nowrap; }
+.workshop .paper-heading .part-tabs { justify-content: center; gap: 3px; }
+.workshop .paper-heading .part-tabs button { min-height: 25px; padding: 3px 7px; border-radius: 8px; font-size: 10px; }
+.workshop .paper-heading > button { justify-self: end; font-size: 9px; }
