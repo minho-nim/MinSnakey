@@ -3440,3 +3440,27 @@ meter::-webkit-meter-optimum-value {
 .workshop > .arcade-bottom { margin: 4px 0 16px; }
 .workshop > .live-ability-strip { margin: 0 0 12px; position: static; transform: none; }
 .workshop > .shape-readout { margin: 0 auto 12px; border-top: 2px solid #343c2b; border-radius: 12px; }
+/* Give the lower drawing panels a single, consistent outer edge. */
+.workshop > details.part-draw-guide,
+.workshop > details.assembly-peek,
+.workshop > details.compact-panel {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid #b5c49e;
+  border-radius: 10px;
+  background: #fff5df;
+  color: #35452e;
+  box-shadow: none;
+}
+.workshop > details > summary {
+  min-height: 24px;
+  padding: 4px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 800;
+}
+.workshop > details.assembly-peek > summary > span { display: none; }
+.workshop > details:last-child { margin-bottom: 0; }
+.workshop { padding-bottom: 28px; }
