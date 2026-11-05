@@ -7,7 +7,8 @@ for (const width of [320, 390, 768, 1280]) test(`compact layout at ${width}px`, 
  expect((await canvas.boundingBox())!.y).toBeLessThan(480);
  await page.screenshot({path:`/tmp/minsnakey-draw-${width}.png`,fullPage:true});
  const tips=page.locator('details.part-draw-guide'); await expect(tips).toHaveAttribute('open','');
- expect((await tips.boundingBox())!.y).toBeLessThan((await canvas.boundingBox())!.y);
+ expect((await tips.boundingBox())!.y).toBeGreaterThan((await canvas.boundingBox())!.y);
+ expect((await tips.boundingBox())!.y).toBeLessThan((await page.locator(".arcade-bottom").boundingBox())!.y);
  await tips.locator('summary').click(); await expect(tips).not.toHaveAttribute('open');
  await tips.locator('summary').click(); await expect(tips).toHaveAttribute('open',''); await fits();
  await page.getByText('연결점 설정',{exact:true}).click(); await expect(page.getByRole('button',{name:/연결점 옮기기/})).toBeVisible(); await fits();

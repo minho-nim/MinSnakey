@@ -3536,3 +3536,13 @@ meter::-webkit-meter-optimum-value {
 .workshop .creation-stage .workshop-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .workshop .creation-stage .workshop-options button { min-height: 32px; padding: 5px; }
 .workshop .creation-stage .workshop-options > span { grid-column: 1 / -1; }
+
+/* Follow the visible workflow in DOM order, without old flex ordering. */
+.workshop > * { order: 0 !important; }
+.workshop > .live-ability-strip { padding: 5px 10px; margin-bottom: 5px; }
+.workshop > .live-ability-strip strong { font-size: 22px; }
+.workshop > .full-ability-panel { margin-bottom: 6px; padding: 4px 10px; }
+.workshop .paper-heading { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.workshop .paper-heading .part-tabs { width: auto; justify-content: center; gap: 4px; }
+.workshop .paper-heading .part-tabs button { flex: 0 0 auto; width: 42px; min-height: 27px; padding: 3px 0; display: inline-flex; align-items: center; justify-content: center; text-align: center; line-height: 18px; }
+.workshop > details.part-draw-guide { margin: 4px 0 8px; }

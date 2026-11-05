@@ -396,6 +396,25 @@ export default function Workshop({
           <Brand large />
         </h1>
       </div>
+      <div className="live-ability-strip" aria-label="실시간 주요 능력치">
+        {(
+          [
+            { key: "acceleration", label: "가속력" },
+            { key: "maxSpeed", label: "최고속도" },
+            { key: "traction", label: "접지력" },
+          ] as const
+        ).map((a) => (
+          <div key={a.key}>
+            <span>{a.label}</span>
+            <strong>
+              {Object.values(draft.parts).some((p) => p.strokes.length)
+                ? abilityScore(stats, a.key)
+                : "—"}
+            </strong>
+          </div>
+        ))}
+      </div>
+      <details className="compact-panel full-ability-panel"><summary>전체 능력치 보기</summary><AbilityPanel stats={stats} compact /></details>
       <div className="arcade-tools">
         <button onClick={undo} disabled={!history.current[kind].length}>
           ↶ 되돌리기
@@ -535,6 +554,21 @@ export default function Workshop({
         </p>
       )}
       {startError && <p className="drawing-start-error" role="alert">{startError}</p>}
+      <details open
+        className="part-draw-guide"
+        aria-label={`${names[kind]} 그리기 참고`}
+      >
+        <summary>힌트 보기</summary>
+        <b>{PART_DRAW_TIPS[kind].title}</b>
+        <small>점선 크기로 그리면 NPC와 비슷한 체급이에요.</small>
+        <div>
+          {PART_DRAW_TIPS[kind].tips.map((tip) => (
+            <span key={tip}>{tip}</span>
+          ))}
+        </div>
+        <small>{PART_DRAW_TIPS[kind].note}</small>
+        <p className="live-part-traits">{current.strokes.length ? partTraitLabels(stats, kind).join(" · ") : "그리면 현재 부위의 특성이 표시돼요"}</p>
+      </details>
       <div className="arcade-bottom">
         <button onClick={onHome}>내 뱀</button>
         <button
@@ -550,24 +584,6 @@ export default function Workshop({
         </button>
         <button onClick={onSample}>샘플 경기</button>
         <button className="quick-start" onClick={quickStart}>다음 단계 ▶</button>
-      </div>
-      <div className="live-ability-strip" aria-label="실시간 주요 능력치">
-        {(
-          [
-            { key: "acceleration", label: "가속력" },
-            { key: "maxSpeed", label: "최고속도" },
-            { key: "traction", label: "접지력" },
-          ] as const
-        ).map((a) => (
-          <div key={a.key}>
-            <span>{a.label}</span>
-            <strong>
-              {Object.values(draft.parts).some((p) => p.strokes.length)
-                ? abilityScore(stats, a.key)
-                : "—"}
-            </strong>
-          </div>
-        ))}
       </div>
       <div className="shape-readout" role="status" aria-label="그림 분석">
         <span>
@@ -596,21 +612,7 @@ export default function Workshop({
               : `${names[kind]} 완성 중! 크기도 무게에 반영돼요`}
         </strong>
       </div>
-      <details open
-        className="part-draw-guide"
-        aria-label={`${names[kind]} 그리기 참고`}
-      >
-        <summary>힌트 보기</summary>
-        <b>{PART_DRAW_TIPS[kind].title}</b>
-        <small>점선 크기로 그리면 NPC와 비슷한 체급이에요.</small>
-        <div>
-          {PART_DRAW_TIPS[kind].tips.map((tip) => (
-            <span key={tip}>{tip}</span>
-          ))}
-        </div>
-        <small>{PART_DRAW_TIPS[kind].note}</small>
-        <p className="live-part-traits">{current.strokes.length ? partTraitLabels(stats, kind).join(" · ") : "그리면 현재 부위의 특성이 표시돼요"}</p>
-      </details>
+
       <details className="assembly-peek">
         <summary>
           내 뱀 조립 미리보기 <span>⌄</span>
@@ -622,9 +624,7 @@ export default function Workshop({
         />
       </details>
 
-      {Object.values(draft.parts).some((p) => p.strokes.length) && (
-        <details className="compact-panel"><summary>전체 능력치 보기</summary><AbilityPanel stats={stats} compact /></details>
-      )}
+
     </section>
   );
 }
