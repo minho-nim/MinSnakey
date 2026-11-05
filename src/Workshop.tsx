@@ -395,40 +395,6 @@ export default function Workshop({
           전체 삭제
         </button>
       </div>
-      <div className="live-ability-strip" aria-label="실시간 주요 능력치">
-        {(
-          [
-            { key: "acceleration", label: "가속력" },
-            { key: "maxSpeed", label: "최고속도" },
-            { key: "traction", label: "접지력" },
-          ] as const
-        ).map((a) => (
-          <div key={a.key}>
-            <span>{a.label}</span>
-            <strong>
-              {Object.values(draft.parts).some((p) => p.strokes.length)
-                ? abilityScore(stats, a.key)
-                : "—"}
-            </strong>
-          </div>
-        ))}
-      </div>
-      <details
-        className="part-draw-guide"
-        aria-label={`${names[kind]} 그리기 참고`}
-      >
-        <summary>{PART_DRAW_TIPS[kind].title} · 그리기 팁</summary>
-        <small>점선 크기로 그리면 NPC와 비슷한 체급이에요.</small>
-        <div>
-          {PART_DRAW_TIPS[kind].tips.map((tip) => (
-            <span key={tip}>{tip}</span>
-          ))}
-        </div>
-        <small>{PART_DRAW_TIPS[kind].note}</small>
-        {!!current.strokes.length && (
-          <p>{partTraitLabels(stats, kind).join(" · ")}</p>
-        )}
-      </details>
       <div className="creation-stage">
         <div className="paper-heading">
           <span>
@@ -496,55 +462,6 @@ export default function Workshop({
           </label>
         </div>
       </div>
-      <div className="shape-readout" role="status" aria-label="그림 분석">
-        <span>
-          몸통 길이{" "}
-          <b>
-            {(draft.parts.body.strokes.length ? rig.length * 100 : 0).toFixed(
-              0,
-            )}
-            cm
-          </b>{" "}
-          · 무게{" "}
-          <b>
-            {(Object.values(draft.parts).some((p) => p.strokes.length)
-              ? stats.mass
-              : 0
-            ).toFixed(1)}
-            kg
-          </b>{" "}
-          · 크기 <b>{(stats.size * 100).toFixed(0)}cm</b>
-        </span>
-        <strong>
-          {!ink
-            ? "아직 빈 종이!"
-            : kind === "body"
-              ? `굴곡 ${rig.curve.toFixed(1)} · 그린 형태로 움직여요`
-              : `${names[kind]} 완성 중! 크기도 무게에 반영돼요`}
-        </strong>
-      </div>
-      <details className="compact-panel"><summary>연결점 설정</summary>
-      <div className="workshop-options">
-        <button onClick={() => commit(drawing(current.strokes, kind))}>
-          연결점 자동 맞춤
-        </button>
-
-        <button
-          aria-pressed={tool === "anchor"}
-          onClick={() => setTool(tool === "anchor" ? "pen" : "anchor")}
-        >
-          ⊙ 연결점 {tool === "anchor" ? "이동 중" : "옮기기"}
-        </button>
-        {kind === "body" && <button aria-pressed={tool === "tail-anchor"} onClick={() => setTool(tool === "tail-anchor" ? "pen" : "tail-anchor")}>꼬리 연결점 설정</button>}
-        <span>
-          {tool === "tail-anchor" ? "몸통에서 꼬리를 붙일 곳을 눌러 주세요" : tool === "anchor"
-            ? "종이를 눌러 연결할 자리를 정해요"
-            : tool === "eraser"
-              ? "문지르면 지나간 부분만 지워져요"
-              : "원하는 모양 그대로, 자유롭게!"}
-        </span>
-      </div>
-      </details>
       {kind === "head" && connections.reports.head.eyes.length > 0 && (
         <p className="class-note" role="status">
           눈 장식으로 인식한 선은 연결하지 않아도 돼요.
@@ -577,9 +494,67 @@ export default function Workshop({
         </button>
         <button onClick={onSample}>샘플 경기</button>
       </div>
-      {Object.values(draft.parts).some((p) => p.strokes.length) && (
-        <details className="compact-panel"><summary>전체 능력치 보기</summary><AbilityPanel stats={stats} compact /></details>
-      )}
+      <div className="live-ability-strip" aria-label="실시간 주요 능력치">
+        {(
+          [
+            { key: "acceleration", label: "가속력" },
+            { key: "maxSpeed", label: "최고속도" },
+            { key: "traction", label: "접지력" },
+          ] as const
+        ).map((a) => (
+          <div key={a.key}>
+            <span>{a.label}</span>
+            <strong>
+              {Object.values(draft.parts).some((p) => p.strokes.length)
+                ? abilityScore(stats, a.key)
+                : "—"}
+            </strong>
+          </div>
+        ))}
+      </div>
+      <div className="shape-readout" role="status" aria-label="그림 분석">
+        <span>
+          몸통 길이{" "}
+          <b>
+            {(draft.parts.body.strokes.length ? rig.length * 100 : 0).toFixed(
+              0,
+            )}
+            cm
+          </b>{" "}
+          · 무게{" "}
+          <b>
+            {(Object.values(draft.parts).some((p) => p.strokes.length)
+              ? stats.mass
+              : 0
+            ).toFixed(1)}
+            kg
+          </b>{" "}
+          · 크기 <b>{(stats.size * 100).toFixed(0)}cm</b>
+        </span>
+        <strong>
+          {!ink
+            ? "아직 빈 종이!"
+            : kind === "body"
+              ? `굴곡 ${rig.curve.toFixed(1)} · 그린 형태로 움직여요`
+              : `${names[kind]} 완성 중! 크기도 무게에 반영돼요`}
+        </strong>
+      </div>
+      <details
+        className="part-draw-guide"
+        aria-label={`${names[kind]} 그리기 참고`}
+      >
+        <summary>{PART_DRAW_TIPS[kind].title} · 그리기 팁</summary>
+        <small>점선 크기로 그리면 NPC와 비슷한 체급이에요.</small>
+        <div>
+          {PART_DRAW_TIPS[kind].tips.map((tip) => (
+            <span key={tip}>{tip}</span>
+          ))}
+        </div>
+        <small>{PART_DRAW_TIPS[kind].note}</small>
+        {!!current.strokes.length && (
+          <p>{partTraitLabels(stats, kind).join(" · ")}</p>
+        )}
+      </details>
       <details className="assembly-peek">
         <summary>
           내 뱀 조립 미리보기 <span>⌄</span>
@@ -590,6 +565,31 @@ export default function Workshop({
           aria-label="그린 뱀 실시간 조립 미리보기"
         />
       </details>
+      <details className="compact-panel"><summary>연결점 설정</summary>
+      <div className="workshop-options">
+        <button onClick={() => commit(drawing(current.strokes, kind))}>
+          연결점 자동 맞춤
+        </button>
+
+        <button
+          aria-pressed={tool === "anchor"}
+          onClick={() => setTool(tool === "anchor" ? "pen" : "anchor")}
+        >
+          ⊙ 연결점 {tool === "anchor" ? "이동 중" : "옮기기"}
+        </button>
+        {kind === "body" && <button aria-pressed={tool === "tail-anchor"} onClick={() => setTool(tool === "tail-anchor" ? "pen" : "tail-anchor")}>꼬리 연결점 설정</button>}
+        <span>
+          {tool === "tail-anchor" ? "몸통에서 꼬리를 붙일 곳을 눌러 주세요" : tool === "anchor"
+            ? "종이를 눌러 연결할 자리를 정해요"
+            : tool === "eraser"
+              ? "문지르면 지나간 부분만 지워져요"
+              : "원하는 모양 그대로, 자유롭게!"}
+        </span>
+      </div>
+      </details>
+      {Object.values(draft.parts).some((p) => p.strokes.length) && (
+        <details className="compact-panel"><summary>전체 능력치 보기</summary><AbilityPanel stats={stats} compact /></details>
+      )}
     </section>
   );
 }

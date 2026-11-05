@@ -3432,3 +3432,11 @@ meter::-webkit-meter-optimum-value {
 .workshop > .arcade-title h1 { margin: 0; font-size: clamp(26px, 7vw, 36px); }
 .workshop > .arcade-title .brand-lockup-large { gap: 10px; }
 .workshop > .arcade-title .brand-lockup-large .brand-logo { width: 44px; height: 44px; }
+
+/* Leave room for the canvas shadow and keep the next action adjacent. */
+.workshop > .creation-stage { margin-bottom: 14px; flex-shrink: 0; }
+.workshop > .connection-warning { margin: 2px 0 8px; }
+.workshop > .class-note { margin: 2px 0 8px; }
+.workshop > .arcade-bottom { margin: 4px 0 16px; }
+.workshop > .live-ability-strip { margin: 0 0 12px; position: static; transform: none; }
+.workshop > .shape-readout { margin: 0 auto 12px; border-top: 2px solid #343c2b; border-radius: 12px; }
