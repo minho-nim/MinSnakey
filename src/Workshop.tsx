@@ -512,7 +512,7 @@ export default function Workshop({
           {step < 2 ? "다음" : "조립!"} <span>▶</span>
         </button>
         <button onClick={onSample}>샘플 경기</button>
-        <button className="quick-start" onClick={quickStart}>바로 시작 ▶</button>
+        <button className="quick-start" onClick={quickStart}>다음 단계 ▶</button>
       </div>
       <div className="live-ability-strip" aria-label="실시간 주요 능력치">
         {(
