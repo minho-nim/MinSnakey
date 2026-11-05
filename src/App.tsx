@@ -624,7 +624,6 @@ export default function App() {
           }}
         >
           <Brand />
-          <span className="version">v0.8</span>
         </button>
         <span className="header-note">DRAW IT. RACE IT.</span>
         <span className="local-badge">
