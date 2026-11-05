@@ -3472,3 +3472,8 @@ meter::-webkit-meter-optimum-value {
 /* Keep the original three actions together, with assembly on its own row. */
 .workshop > .arcade-bottom { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .workshop > .arcade-bottom > .quick-start { grid-column: 1 / -1; }
+
+/* Terrain messages must never move the race HUD or track. */
+.race-page .water-status { height: 2.8em; line-height: 1.4; margin: 6px 0; display: flex; align-items: center; justify-content: center; text-align: center; }
+.race-page .race-status-line { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; }
+.race-page .race-status-line > strong { box-sizing: border-box; min-height: 54px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4px; }

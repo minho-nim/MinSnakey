@@ -231,13 +231,11 @@ function RaceView({
           </strong>
         )}
       </div>
-      {terrainAt(race.course, p.distance).waterDepth > 0 && (
-        <p className="water-status">
+      <p className="water-status" aria-hidden={terrainAt(race.course, p.distance).waterDepth <= 0} style={{visibility: terrainAt(race.course, p.distance).waterDepth > 0 ? "visible" : "hidden"}}>
           {p.waterDrag === 0 && p.jumpHeight > 0
             ? "↗ 물 위로 점프 중 · 물 저항 없음"
             : "≈ 물에 닿은 부위만 저항을 받아요"}
-        </p>
-      )}
+      </p>
       <div className="race-hud">
         <div>
           <small>경기 시간</small>
