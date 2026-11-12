@@ -3,6 +3,7 @@ name: incremental-implementation
 description: "조금씩 개발하기. 여러 파일을 바꾸는 기능이나 계획의 다음 작업을 할 때 쓴다. 한 번에 다 쓰지 않고 확인할 수 있는 얇은 조각으로 나눠, 조각마다 시험·빌드를 통과시키며 진행한다."
 metadata:
   minoffia-category: 기타
+  minoffia-default: "true"
 ---
 
 # 조금씩 개발하기
