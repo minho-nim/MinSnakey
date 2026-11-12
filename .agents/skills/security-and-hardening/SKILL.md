@@ -3,6 +3,7 @@ name: security-and-hardening
 description: "보안 점검. 사용자 입력·로그인·권한·데이터 저장·외부 연동·AI 호출을 다루는 기능을 만들거나 고칠 때 쓴다. 입력 검증, 비밀값 보호, 권한 확인처럼 흔한 구멍(OWASP Top 10)을 막는다."
 metadata:
   minoffia-category: 보안
+  minoffia-default: "true"
 ---
 
 # 보안 점검

@@ -3,6 +3,7 @@ name: debugging-and-error-recovery
 description: "버그 고치기. 시험·빌드가 실패하거나, 잘 되던 것이 깨졌거나, 예상과 다르게 동작할 때 쓴다. 바로 고치지 않고 재현 → 원인 좁히기 → 가장 작은 수정 → 다시 재현해 확인 순서로 한다."
 metadata:
   minoffia-category: 시험·점검
+  minoffia-default: "true"
 ---
 
 # 버그 고치기

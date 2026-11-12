@@ -3,6 +3,7 @@ name: frontend-ui-engineering
 description: "화면 만들기. 화면·컴포넌트·레이아웃을 만들거나 고칠 때 쓴다. 휴대폰 폭부터 맞추고 접근성(키보드·글자 크기·대비)과 불러오는 중·빈 상태·오류 상태까지 챙겨 실제 서비스 수준으로 만든다."
 metadata:
   minoffia-category: 화면·디자인
+  minoffia-default: "true"
 ---
 
 # 화면 만들기
