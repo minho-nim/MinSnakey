@@ -1,0 +1,21 @@
+# UI 코드 검사(미노피아가 넣음, 2026-11-16 소유자 "UI에 쓰는 거라 웬만하면 모두"): PR이 새로 추가한 줄만 보고
+# 대체 글 없는 이미지·아무 일도 안 하는 버튼·불러오는 중/빈/오류 상태 없음·혼자 튀는 색·접근성 기본·AI 티 나는 문구를 PR에 표시한다.
+# 알림만 하고 병합은 막지 않는다(fail-on: never). 계정·토큰·외부 전송 없음(저장소 안에서 git과 파일만 읽음).
+# uxkin/ui-check v1.0.1(MIT)을 코드를 읽고 확인한 커밋으로 고정. 고칠 때는 새 커밋을 읽고 바꾼다.
+name: UI 코드 검사
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ui-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: uxkin/ui-check@1dba74ee6a8e63611f99539470c37667ace1a149 # v1.0.1
+        with:
+          fail-on: never
