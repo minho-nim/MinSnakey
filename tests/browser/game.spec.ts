@@ -717,3 +717,34 @@ test("results explain start, actual water speed and the part that hit an obstacl
   await expect(panel).toContainText("꼬리");
   await expect(panel).toContainText("착지");
 });
+
+test("game over shows this and best scores, persists the best, and restarts at zero", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 400, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "샘플 경기", exact: true }).click();
+  await page.getByRole("button", { name: "경주 시작 →" }).click();
+  await page.getByRole("button", { name: "결과보기 →" }).click();
+
+  const scores = page.getByLabel("경기 점수");
+  await expect(scores.getByText("이번 점수", { exact: true })).toBeVisible();
+  await expect(scores.getByText("최고 점수", { exact: true })).toBeVisible();
+  await expect(scores.locator("strong")).toHaveCount(2);
+  await expect(scores.locator("strong").nth(0)).toHaveText(
+    await scores.locator("strong").nth(1).innerText(),
+  );
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("kkumul-race:v1") || "{}").records?.length,
+    ),
+  ).toBe(1);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBe(true);
+
+  const restart = page.getByRole("button", { name: "다시 하기", exact: true });
+  expect((await restart.boundingBox())!.height).toBeGreaterThanOrEqual(48);
+  await restart.click();
+  await expect(page.getByTestId("time")).toHaveText("0.00초");
+});
