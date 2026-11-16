@@ -602,6 +602,11 @@ export default function App() {
   };
   const onDone = useRef(() => finishRef.current()).current;
   const stat = analyze(snake);
+  const currentTime = race?.racers[0].finish ?? null;
+  const currentBest =
+    currentTime !== null && (previousBest === null || currentTime < previousBest)
+      ? currentTime
+      : previousBest;
   return (
     <div className={`game-shell page-${page}`}>
       <div className="stadium-scenery" aria-hidden="true">
@@ -1043,8 +1048,8 @@ export default function App() {
               모드
             </p>
             <div className="center-actions">
-              <button className="primary" onClick={start}>
-                다시 달리기 ↻
+              <button className="primary restart-button" onClick={start}>
+                다시 하기
               </button>
               <button className="secondary" onClick={() => edit()}>
                 내 뱀 수정
@@ -1115,7 +1120,16 @@ export default function App() {
                     ? `${standings(race).indexOf(race.racers[0]) + 1}위`
                     : "미완주"}
                 </span>
-                <h2>{fmt(race.racers[0].finish)}</h2>
+                <div className="result-scores" aria-label="경기 점수">
+                  <div>
+                    <span>이번 점수</span>
+                    <strong>{fmt(currentTime)}</strong>
+                  </div>
+                  <div>
+                    <span>최고 점수</span>
+                    <strong>{fmt(currentBest)}</strong>
+                  </div>
+                </div>
                 <b>
                   {race.racers[0].finish !== null &&
                   (previousBest === null ||
