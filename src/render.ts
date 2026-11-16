@@ -163,6 +163,7 @@ export function renderPreview(canvas: HTMLCanvasElement, r: Racer) {
   );
 }
 export type RaceCamera = { x: number; scale?: number; viewport?: string };
+export type ScoreEffect = { milestone: number; progress: number };
 export function trackScale(
   race: Race,
   camera: RaceCamera,
@@ -191,6 +192,7 @@ export function renderRace(
   race: Race,
   camera: RaceCamera,
   elapsed: number,
+  scoreEffect?: ScoreEffect,
 ) {
   const { ctx, w, h } = fitCanvas(canvas),
     laneH = (h - 46) / 4,
@@ -348,6 +350,35 @@ export function renderRace(
       clamp(x - r.stats.length * scale * 0.4, 65, w - 65),
       terrainCourse ? 28 + (i + 1) * laneH - 7 : y - laneH * 0.28,
     );
+
+    if (i === 0 && scoreEffect && scoreEffect.progress < 1) {
+      const life = scoreEffect.progress,
+        centerX = x - r.stats.length * scale * 0.4,
+        centerY = y - 34 - life * 24;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, (1 - life) * 1.8);
+      ctx.fillStyle = "#a34324";
+      ctx.font = "bold 18px sans-serif";
+      ctx.shadowColor = "#fff8e4";
+      ctx.shadowBlur = 5;
+      ctx.fillText(`+10m · ${scoreEffect.milestone}m!`, centerX, centerY);
+      ctx.shadowBlur = 0;
+      for (let particle = 0; particle < 8; particle++) {
+        const angle = (Math.PI * 2 * particle) / 8 + scoreEffect.milestone,
+          spread = 14 + life * 32;
+        ctx.fillStyle = particle % 2 ? "#e19b42" : "#4a6740";
+        ctx.beginPath();
+        ctx.arc(
+          centerX + Math.cos(angle) * spread,
+          centerY + 7 + Math.sin(angle) * spread * 0.55,
+          3 - life * 1.5,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+      ctx.restore();
+    }
   });
   ctx.restore();
   ctx.fillStyle = "#75664f";

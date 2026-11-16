@@ -889,6 +889,7 @@ meter::-webkit-meter-optimum-value {
   padding: 22px 10px;
 }
 .race-hud > div {
+  position: relative;
   text-align: center;
   border-right: 1px solid #e2e6d5;
 }
@@ -913,6 +914,41 @@ meter::-webkit-meter-optimum-value {
   color: #9da58f;
   margin-left: 6px;
   letter-spacing: 0;
+}
+.race-hud .score-pop {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: -18px;
+  width: max-content;
+  transform: translateX(-50%);
+  border: 2px solid #2e392c;
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: #e7b94f;
+  color: #2e392c;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: 0 2px 0 #a34324;
+  pointer-events: none;
+  animation: score-pop 900ms ease-out both;
+}
+.race-hud .distance-score {
+  display: inline-block;
+  animation: distance-score 500ms ease-out;
+}
+@keyframes score-pop {
+  0% { opacity: 0; transform: translate(-50%, 8px) scale(0.65) rotate(-4deg); }
+  24%, 72% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -12px) scale(0.9) rotate(2deg); }
+}
+@keyframes distance-score {
+  0% { color: #a34324; transform: scale(1.35); }
+  100% { color: inherit; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .race-hud .score-pop,
+  .race-hud .distance-score { animation-duration: 1ms; }
 }
 .track-wrap {
   position: relative;
