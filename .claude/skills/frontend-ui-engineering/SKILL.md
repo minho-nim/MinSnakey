@@ -8,7 +8,7 @@ metadata:
 
 # 화면 만들기
 
-> **minoffia 메모:** 원문 addyosmani/agent-skills@301b02b (MIT), LICENSE 동봉. 설명·이 요약은 미노피아가 한국어로 줄여 붙였고(토큰 아끼기), 아래 '원문(영어)'은 고치지 않았다.
+> **minoffia 메모:** 원문 addyosmani/agent-skills@39b723c (MIT), LICENSE 동봉. 설명·이 요약은 미노피아가 한국어로 줄여 붙였고(토큰 아끼기), 아래 '원문(영어)'은 고치지 않았다(2026-11-16 최신으로 올림).
 
 ## 지시서용 요약
 
@@ -35,6 +35,10 @@ Build production-quality user interfaces that are accessible, performant, and vi
 - Implementing responsive layouts
 - Adding interactivity or state management
 - Fixing visual or UX issues
+
+## Verify With What the Project Has
+
+Run the project's own test, type-check, or lint commands. Don't install a framework, test runner, or type checker just to check your work; if the project has none, review the code against the [Verification](#verification) list and say what you could not run.
 
 ## Component Architecture
 
@@ -196,6 +200,8 @@ Don't skip heading levels. Don't use heading styles for non-heading content.
 
 Every component must meet these standards:
 
+For menus, dialogs, tabs, listboxes and comboboxes, follow the [WAI-ARIA APG pattern](https://www.w3.org/WAI/ARIA/apg/patterns/) exactly.
+
 ### Keyboard Navigation
 
 ```tsx
@@ -347,7 +353,7 @@ For detailed accessibility requirements and testing tools, see `../../references
 
 ## Verification
 
-After building UI:
+After building UI, check what you can with the project's own tooling, and review the rest against this list. Don't add dependencies or install toolchains only to verify; say which checks you couldn't run.
 
 - [ ] Component renders without console errors
 - [ ] All interactive elements are keyboard accessible (Tab through the page)
