@@ -39,7 +39,7 @@ import {
   verifyChallengeRecord,
   type Race,
 } from "./physics";
-import { renderPreview, renderRace } from "./render";
+import { renderPreview, renderRace, type ScoreEffect } from "./render";
 import { best, previousRulesBest, load, save, type Saved } from "./storage";
 const fmt = (n: number | null) => (n === null ? "—" : `${n.toFixed(2)}초`);
 function Preview({
@@ -83,22 +83,47 @@ function RaceView({
     camera = useRef({ x: -2 }),
     [tick, setTick] = useState(0),
     [confirmExit, setConfirmExit] = useState(false),
-    [playbackRate, setPlaybackRate] = useState(DEFAULT_PLAYBACK_RATE);
+    [playbackRate, setPlaybackRate] = useState(DEFAULT_PLAYBACK_RATE),
+    [distanceMilestone, setDistanceMilestone] = useState(0);
   const rateRef = useRef(playbackRate);
   rateRef.current = playbackRate;
   const done = useRef(false);
+  const scoreEffect = useRef<(ScoreEffect & { startedAt: number }) | null>(null);
   useEffect(() => {
     done.current = false;
     camera.current = { x: -2 };
+    scoreEffect.current = null;
+    setDistanceMilestone(0);
     let frame = 0,
       last = 0,
-      lastUi = 0;
+      lastUi = 0,
+      previousMilestone = 0;
     const animate = (now: number) => {
       const dt = last ? (now - last) / 1000 : 0;
       last = now;
       advance(race, dt, rateRef.current);
+      const milestone = Math.min(
+        100,
+        Math.floor(race.racers[0].distance / 10) * 10,
+      );
+      if (milestone > previousMilestone) {
+        previousMilestone = milestone;
+        scoreEffect.current = { milestone, progress: 0, startedAt: now };
+        setDistanceMilestone(milestone);
+      }
+      if (scoreEffect.current)
+        scoreEffect.current.progress = Math.min(
+          1,
+          (now - scoreEffect.current.startedAt) / 900,
+        );
       if (canvas.current)
-        renderRace(canvas.current, race, camera.current, race.paused ? 0 : dt);
+        renderRace(
+          canvas.current,
+          race,
+          camera.current,
+          race.paused ? 0 : dt,
+          scoreEffect.current ?? undefined,
+        );
       if (now - lastUi > 65) {
         setTick((t) => t + 1);
         lastUi = now;
@@ -253,10 +278,24 @@ function RaceView({
         </div>
         <div>
           <small>달린 거리</small>
-          <strong data-testid="distance">
+          <strong
+            data-testid="distance"
+            className={distanceMilestone ? "distance-score" : undefined}
+            key={`distance-${distanceMilestone}`}
+          >
             {p.distance.toFixed(1)}
             <em>/ 100m</em>
           </strong>
+          {distanceMilestone > 0 && (
+            <span
+              className="score-pop"
+              role="status"
+              aria-live="polite"
+              key={`score-${distanceMilestone}`}
+            >
+              +10m 통과!
+            </span>
+          )}
         </div>
         <div>
           <small>현재 속도</small>
