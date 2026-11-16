@@ -1,0 +1,4 @@
+#!/bin/sh
+# 미노피아 기본 훅(v0.7.43): 커밋 전에 .env·비밀값·데이터 삭제 SQL을 막는다. 켜기: git config core.hooksPath .githooks
+command -v node >/dev/null 2>&1 || exit 0
+exec node "$(git rev-parse --show-toplevel)/.claude/hooks/guard.mjs" --commit
